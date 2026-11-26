@@ -3,6 +3,8 @@ import SwiftUI
 /// The More tab: a grid of every tool in the app, plus the tip row.
 struct MoreTabView: View {
     @State private var showsTipsAlert = false
+    /// Turns true on first appearance to play the tile entrance once.
+    @State private var revealed = false
 
     init() {}
 
@@ -20,8 +22,9 @@ struct MoreTabView: View {
                         .padding(.horizontal, 4)
 
                     LazyVGrid(columns: columns, spacing: 10) {
-                        ForEach(MoreTool.allCases) { tool in
+                        ForEach(Array(MoreTool.allCases.enumerated()), id: \.element) { index, tool in
                             tile(for: tool)
+                                .riseIn(revealed: revealed, delay: 0.035 * Double(index), distance: 12, duration: 0.4)
                         }
                     }
 
@@ -33,6 +36,9 @@ struct MoreTabView: View {
                 .padding(.bottom, 24)
             }
             .moreSkyBackground(.more)
+            .onAppear {
+                revealed = true
+            }
             .navigationTitle("Everything")
             .toolbar(.hidden, for: .navigationBar)
             .alert("Tips are coming soon.", isPresented: $showsTipsAlert) {

@@ -29,12 +29,13 @@ struct LocationPill: View {
                 request()
             }
         } label: {
+            // The pill sizes to its whole text and never truncates; the date beside it gives way instead.
             Text(text)
                 .font(.footnote.weight(.bold))
                 .foregroundStyle(.white)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .padding(.horizontal, 14)
+                .fixedSize(horizontal: true, vertical: false)
+                .padding(.horizontal, 12)
                 .frame(minHeight: 44)
                 .background(Capsule().fill(Color.white.opacity(0.16)))
                 .overlay(Capsule().strokeBorder(Color.white.opacity(0.3), lineWidth: 1))

@@ -10,6 +10,9 @@ struct TasbihView: View {
     @AppStorage("tasbih.haptics") private var hapticsOn = true
 
     @ScaledMetric(relativeTo: .largeTitle) private var countSize: CGFloat = 88
+    @Environment(\.motionEnabled) private var motionEnabled
+    /// Whole numbers at rest; animating to the next one pulses the ring once when a round completes.
+    @State private var roundPulse: Double = 0
 
     private let circleSize: CGFloat = 250
 
@@ -81,13 +84,21 @@ struct TasbihView: View {
                     .stroke(MorePalette.gold, style: StrokeStyle(lineWidth: 10, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .padding(12)
-                    .animation(.easeOut(duration: 0.2), value: current.count)
+                    .animation(motionEnabled ? .easeOut(duration: 0.25) : nil, value: current.count)
+                Circle()
+                    .stroke(MorePalette.goldLight, lineWidth: 12)
+                    .blur(radius: 4)
+                    .padding(12)
+                    .modifier(PulseEffect(progress: roundPulse, growth: 0.05))
+                    .allowsHitTesting(false)
                 VStack(spacing: 2) {
                     Text("\(current.count)")
                         .font(.system(size: countSize, weight: .black))
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.4)
+                        .contentTransition(.numericText())
+                        .animation(motionEnabled ? .easeOut(duration: 0.25) : nil, value: current.count)
                     Text("of \(current.target)")
                         .font(.headline.weight(.bold))
                         .foregroundStyle(MorePalette.secondaryText)
@@ -98,7 +109,7 @@ struct TasbihView: View {
             .contentShape(Circle())
             .shadow(color: MorePalette.gold.opacity(0.18), radius: 30, y: 20)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressScaleButtonStyle(pressedScale: 0.97))
         .accessibilityLabel(Text("Count \(phrase.title), target \(current.target)"))
         .accessibilityValue(Text("\(current.count)"))
         .accessibilityHint(Text("Tap to count"))
@@ -181,6 +192,11 @@ struct TasbihView: View {
         var next = counter
         next.increment()
         save(next)
+        if next.count == next.target && motionEnabled {
+            withAnimation(.easeOut(duration: 0.8)) {
+                roundPulse = floor(roundPulse) + 1
+            }
+        }
         if hapticsOn {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }

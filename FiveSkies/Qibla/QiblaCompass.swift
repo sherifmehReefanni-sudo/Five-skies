@@ -8,25 +8,50 @@ struct QiblaCompass: View {
     let heading: Double?
     let guidance: QiblaGuidance.State
 
-    /// Diameter in points. Static so the memberwise init stays internal.
+    /// Diameter in points.
     private static let size: CGFloat = 300
+
+    @Environment(\.motionEnabled) private var motionEnabled
+
+    /// Accumulated, unwrapped rotations actually drawn, so springs always take the short way round.
+    @State private var dialRotation: Double
+    @State private var needleRotation: Double
+    /// Whole numbers at rest; animating to the next one pulses the mint ring once.
+    @State private var alignedPulse: Double = 0
+    /// Counts each time the user comes to face the Qibla, for the success haptic.
+    @State private var alignedCount = 0
+
+    init(bearing: Double?, heading: Double?, guidance: QiblaGuidance.State) {
+        self.bearing = bearing
+        self.heading = heading
+        self.guidance = guidance
+        _dialRotation = State(initialValue: Self.dialTarget(heading: heading))
+        _needleRotation = State(initialValue: Self.needleTarget(bearing: bearing, heading: heading))
+    }
 
     private var isAligned: Bool {
         guidance == .aligned
     }
 
-    private var dialRotation: Double {
+    private static func dialTarget(heading: Double?) -> Double {
         QiblaGuidance.dialRotation(heading: heading)
     }
 
-    private var needleRotation: Double {
+    private static func needleTarget(bearing: Double?, heading: Double?) -> Double {
         guard let bearing = bearing else { return 0 }
         return QiblaGuidance.needleRotation(bearing: bearing, heading: heading)
     }
 
+    private var turnAnimation: Animation? {
+        motionEnabled ? .spring(response: 0.6, dampingFraction: 0.85) : nil
+    }
+
     var body: some View {
-        ZStack {
+        let dialGoal = Self.dialTarget(heading: heading)
+        let needleGoal = Self.needleTarget(bearing: bearing, heading: heading)
+        return ZStack {
             glow
+            alignedRing
             dial
                 .rotationEffect(.degrees(dialRotation))
             disc
@@ -35,6 +60,28 @@ struct QiblaCompass: View {
                 .opacity(bearing == nil ? 0.4 : 1)
         }
         .frame(width: Self.size, height: Self.size)
+        .onChange(of: dialGoal) { _, target in
+            let next = QiblaGuidance.unwrappedRotation(from: dialRotation, to: target)
+            withAnimation(turnAnimation) {
+                dialRotation = next
+            }
+        }
+        .onChange(of: needleGoal) { _, target in
+            let next = QiblaGuidance.unwrappedRotation(from: needleRotation, to: target)
+            withAnimation(turnAnimation) {
+                needleRotation = next
+            }
+        }
+        .onChange(of: isAligned) { _, aligned in
+            guard aligned else { return }
+            alignedCount += 1
+            if motionEnabled {
+                withAnimation(.easeOut(duration: 1.1)) {
+                    alignedPulse = floor(alignedPulse) + 1
+                }
+            }
+        }
+        .sensoryFeedback(.success, trigger: alignedCount)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(accessibilityText))
         .accessibilityValue(Text(guidance.text))
@@ -67,6 +114,17 @@ struct QiblaCompass: View {
                 )
             )
             .frame(width: 360, height: 360)
+            .allowsHitTesting(false)
+    }
+
+    /// A soft mint ring that swells and fades once when the user comes to face the Qibla.
+    private var alignedRing: some View {
+        Circle()
+            .inset(by: 6)
+            .stroke(QiblaPalette.mint.opacity(0.8), lineWidth: 6)
+            .blur(radius: 6)
+            .frame(width: Self.size, height: Self.size)
+            .modifier(PulseEffect(progress: alignedPulse, growth: 0.08))
             .allowsHitTesting(false)
     }
 

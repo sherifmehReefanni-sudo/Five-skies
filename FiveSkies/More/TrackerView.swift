@@ -3,6 +3,7 @@ import SwiftUI
 /// Prayer tracker: current and best streak, and this week's grid of prayed dots.
 struct TrackerView: View {
     @Environment(\.appClock) private var clock
+    @Environment(\.motionEnabled) private var motionEnabled
 
     @State private var week: [TrackerDay] = []
     @State private var currentStreak = 0
@@ -102,10 +103,12 @@ struct TrackerView: View {
             ZStack {
                 Circle()
                     .fill(prayed ? MorePalette.mint : Color.clear)
+                    .scaleEffect(prayed ? 1 : 0.3)
                 Circle()
                     .strokeBorder(prayed ? MorePalette.mint : Color.white.opacity(0.6), lineWidth: 2)
             }
             .frame(width: 18, height: 18)
+            .animation(motionEnabled ? .spring(response: 0.35, dampingFraction: 0.65) : nil, value: prayed)
             .frame(maxWidth: .infinity, minHeight: 44)
             .contentShape(Rectangle())
         }

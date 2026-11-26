@@ -81,6 +81,8 @@ private struct TodayScreen: View {
 
     @State private var prayed: Set<Prayer> = []
     @State private var showsSettings = false
+    /// Turns true on first appearance to play the entrance. With motion off everything is in place anyway.
+    @State private var revealed = false
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var scheduler: NotificationScheduler
     private let store = PrayedStore()
@@ -119,7 +121,8 @@ private struct TodayScreen: View {
                     now: now,
                     currentName: day.currentPeriodName(at: now),
                     timeZone: timeZone,
-                    isLocating: isLocating
+                    isLocating: isLocating,
+                    revealed: revealed
                 )
                 .padding(.top, 12)
                 .padding(.horizontal, 16)
@@ -129,6 +132,9 @@ private struct TodayScreen: View {
                     .padding(.bottom, 16)
             }
             .foregroundStyle(.white)
+        }
+        .onAppear {
+            revealed = true
         }
         .task(id: store.dayKey(for: now)) {
             prayed = store.prayers(on: now)
@@ -166,12 +172,13 @@ private struct TodayScreen: View {
     private func header(timeZone: TimeZone) -> some View {
         var dateStyle = Self.dateStyle
         dateStyle.timeZone = timeZone
-        return HStack(alignment: .center, spacing: 12) {
+        return HStack(alignment: .center, spacing: 10) {
             Text(now.formatted(dateStyle))
                 .font(.headline.weight(.bold))
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
-            Spacer(minLength: 8)
+                .layoutPriority(0)
+            Spacer(minLength: 4)
             LocationPill(
                 text: pillText,
                 opensSettings: pillOpensSettings,
@@ -195,7 +202,7 @@ private struct TodayScreen: View {
     private func tiles(for day: PrayerDay, next: Prayer, format: TileTimeFormat, timeZone: TimeZone) -> some View {
         let spoken = Date.FormatStyle(date: .omitted, time: .shortened, timeZone: timeZone)
         return HStack(spacing: 8) {
-            ForEach(Prayer.allCases) { prayer in
+            ForEach(Array(Prayer.allCases.enumerated()), id: \.element) { index, prayer in
                 let time = day.time(of: prayer)
                 PrayerTile(
                     prayer: prayer,
@@ -206,6 +213,7 @@ private struct TodayScreen: View {
                     isPrayed: prayed.contains(prayer),
                     toggle: { toggle(prayer) }
                 )
+                .riseIn(revealed: revealed, delay: 0.3 + 0.07 * Double(index), distance: 44)
             }
         }
     }
@@ -229,11 +237,21 @@ private struct NextPrayerView: View {
     let currentName: String
     let timeZone: TimeZone
     let isLocating: Bool
+    /// Drives the staggered entrance of the headline block.
+    let revealed: Bool
 
     @ScaledMetric(relativeTo: .largeTitle) private var nameSize: CGFloat = 118
+    @Environment(\.motionEnabled) private var motionEnabled
+
+    /// Entrance delay for the headline element at `step`, about 0.08 seconds apart.
+    private func delay(_ step: Int) -> Double {
+        0.08 * Double(step)
+    }
 
     var body: some View {
-        VStack(spacing: 2) {
+        let name = isLocating ? "--" : next.prayer.displayName
+        let countdown = isLocating ? "--" : Self.countdown(from: now, to: next.time)
+        return VStack(spacing: 2) {
             Text("Now: \(currentName)")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.8))
@@ -241,27 +259,37 @@ private struct NextPrayerView: View {
                 .opacity(isLocating ? 0 : 1)
                 .accessibilityHidden(isLocating)
                 .accessibilityIdentifier("currentPeriod")
+                .riseIn(revealed: revealed, delay: delay(0))
             Text("NEXT PRAYER")
                 .font(.caption.weight(.heavy))
                 .tracking(3)
                 .foregroundStyle(.white.opacity(0.85))
-            Text(isLocating ? "--" : next.prayer.displayName)
+                .riseIn(revealed: revealed, delay: delay(1))
+            Text(name)
                 .font(.system(size: nameSize, weight: .black))
                 .kerning(-4)
                 .lineLimit(1)
                 .minimumScaleFactor(0.4)
+                .contentTransition(.opacity)
+                .animation(motionEnabled ? .easeInOut(duration: 0.6) : nil, value: name)
                 .shadow(color: Color(hex: 0x071433, opacity: 0.5), radius: 20, y: 10)
                 .accessibilityIdentifier("nextPrayerName")
+                .riseIn(revealed: revealed, delay: delay(2))
             Text(isLocating ? "--:--" : next.time.formatted(timeStyle))
                 .font(.title2.weight(.bold))
                 .shadow(color: Color(hex: 0x071433, opacity: 0.6), radius: 7, y: 2)
-            Text(isLocating ? "--" : Self.countdown(from: now, to: next.time))
+                .riseIn(revealed: revealed, delay: delay(3))
+            Text(countdown)
                 .font(.subheadline.weight(.bold))
+                .monospacedDigit()
+                .contentTransition(.numericText(countsDown: true))
+                .animation(motionEnabled ? .easeInOut(duration: 0.4) : nil, value: countdown)
                 .padding(.horizontal, 18)
                 .frame(minHeight: 40)
                 .background(Capsule().fill(Color(hex: 0x120B1F, opacity: 0.55)))
                 .overlay(Capsule().strokeBorder(Color.white.opacity(0.3), lineWidth: 1))
                 .padding(.top, 12)
+                .riseIn(revealed: revealed, delay: delay(4))
         }
         .multilineTextAlignment(.center)
     }
@@ -293,6 +321,8 @@ private struct PrayerTile: View {
     private static let ink = Color(hex: 0x120B1F)
     private static let mint = Color(hex: 0x8FF0C8)
 
+    @Environment(\.motionEnabled) private var motionEnabled
+
     var body: some View {
         Button(action: toggle) {
             VStack(spacing: 7) {
@@ -320,9 +350,10 @@ private struct PrayerTile: View {
                 RoundedRectangle(cornerRadius: 26, style: .continuous)
                     .strokeBorder(isNext ? Color.white : Color.white.opacity(0.22), lineWidth: 1)
             )
-            .shadow(color: isNext ? Color(hex: 0xFBC56A, opacity: 0.45) : .clear, radius: 18, y: 14)
+            .modifier(NextTileGlow(isNext: isNext))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressScaleButtonStyle(pressedScale: 0.96))
+        .sensoryFeedback(.selection, trigger: isPrayed)
         .accessibilityLabel(Text(accessibilityText))
         .accessibilityValue(Text(spokenTime))
         .accessibilityIdentifier("tile-\(prayer.rawValue)")
@@ -361,8 +392,31 @@ private struct PrayerTile: View {
                 Image(systemName: "checkmark")
                     .font(.system(size: 10, weight: .heavy))
                     .foregroundStyle(Self.ink)
+                    .transition(.scale(scale: 0.3).combined(with: .opacity))
             }
         }
         .frame(width: 22, height: 22)
+        .animation(motionEnabled ? .spring(response: 0.3, dampingFraction: 0.7) : nil, value: isPrayed)
+    }
+}
+
+/// The gold shadow under the next prayer's tile. While ambient motion is on it glows
+/// slowly brighter and softer over 4 seconds; at rest it is the plain mockup shadow.
+private struct NextTileGlow: ViewModifier {
+    let isNext: Bool
+
+    @Environment(\.ambientMotionEnabled) private var animates
+
+    func body(content: Content) -> some View {
+        let pulses = isNext && animates
+        return TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !pulses)) { context in
+            let wave = pulses ? MotionWave.breath(context.date.timeIntervalSinceReferenceDate, period: 4) : 0.5
+            content
+                .shadow(
+                    color: isNext ? Color(hex: 0xFBC56A, opacity: 0.3 + 0.3 * wave) : .clear,
+                    radius: 15 + 6 * CGFloat(wave),
+                    y: 14
+                )
+        }
     }
 }

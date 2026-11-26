@@ -35,6 +35,49 @@ final class QiblaTests: XCTestCase {
         }
     }
 
+    func testUnwrappedRotationTakesTheShortestPathAndNeverWraps() {
+        XCTAssertEqual(QiblaGuidance.unwrappedRotation(from: 350, to: 10), 370, accuracy: 1e-9)
+        XCTAssertEqual(QiblaGuidance.unwrappedRotation(from: 10, to: 350), -10, accuracy: 1e-9)
+        XCTAssertEqual(QiblaGuidance.unwrappedRotation(from: 20, to: 58), 58, accuracy: 1e-9)
+        XCTAssertEqual(QiblaGuidance.unwrappedRotation(from: 90, to: 90), 90, accuracy: 1e-9)
+
+        // Accumulated values keep growing past 360 or shrinking below 0 without wrapping.
+        XCTAssertEqual(QiblaGuidance.unwrappedRotation(from: 710, to: 10), 730, accuracy: 1e-9)
+        XCTAssertEqual(QiblaGuidance.unwrappedRotation(from: -350, to: 350), -370, accuracy: 1e-9)
+
+        var clockwise = 0.0
+        for step in 1...40 {
+            clockwise = QiblaGuidance.unwrappedRotation(from: clockwise, to: QiblaGuidance.normalized(Double(step) * 30))
+        }
+        XCTAssertEqual(clockwise, 1200, accuracy: 1e-9)
+
+        var counterclockwise = 0.0
+        for step in 1...40 {
+            counterclockwise = QiblaGuidance.unwrappedRotation(
+                from: counterclockwise,
+                to: QiblaGuidance.normalized(Double(-step) * 30)
+            )
+        }
+        XCTAssertEqual(counterclockwise, -1200, accuracy: 1e-9)
+
+        // Every move is at most half a turn and lands on the target angle.
+        for current in stride(from: -1000.0, through: 1000.0, by: 37.3) {
+            for target in stride(from: 0.0, to: 360.0, by: 23) {
+                let next = QiblaGuidance.unwrappedRotation(from: current, to: target)
+                XCTAssertLessThanOrEqual(abs(next - current), 180 + 1e-9)
+                XCTAssertEqual(QiblaGuidance.signedDifference(from: next, to: target), 0, accuracy: 1e-6)
+            }
+        }
+    }
+
+    func testMotionPolicy() {
+        XCTAssertTrue(MotionPolicy.isEnabled(reduceMotion: false, isFixedPhase: false, forcesAnimation: false))
+        XCTAssertFalse(MotionPolicy.isEnabled(reduceMotion: true, isFixedPhase: false, forcesAnimation: false))
+        XCTAssertFalse(MotionPolicy.isEnabled(reduceMotion: false, isFixedPhase: true, forcesAnimation: false))
+        XCTAssertTrue(MotionPolicy.isEnabled(reduceMotion: false, isFixedPhase: true, forcesAnimation: true))
+        XCTAssertFalse(MotionPolicy.isEnabled(reduceMotion: true, isFixedPhase: true, forcesAnimation: true))
+    }
+
     func testGuidanceStates() {
         XCTAssertEqual(QiblaGuidance.state(bearing: 58, heading: 20), .turnRight)
         XCTAssertEqual(QiblaGuidance.state(bearing: 58, heading: 100), .turnLeft)

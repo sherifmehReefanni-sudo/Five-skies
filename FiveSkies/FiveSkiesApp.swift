@@ -64,6 +64,10 @@ struct FiveSkiesApp: App {
                 location: location,
                 service: service
             ))
+            .modifier(MotionEnvironment(
+                isFixedPhase: launch.fixedPhase != nil,
+                forcesAnimation: MotionPolicy.forcesAnimation()
+            ))
             .tint(Color(hex: 0xFFD27A))
             .preferredColorScheme(.dark)
             .environment(\.appClock, clock)

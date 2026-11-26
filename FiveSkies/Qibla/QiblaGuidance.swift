@@ -61,6 +61,14 @@ struct QiblaGuidance {
         -(heading ?? 0)
     }
 
+    /// The next value for an accumulated, unwrapped rotation that should show `target` degrees.
+    /// It moves by the shortest signed difference, so an animation never spins the long way
+    /// round when the angle crosses 0 or 360, and the result can grow past 360 or below 0.
+    static func unwrappedRotation(from current: Double, to target: Double) -> Double {
+        guard current.isFinite else { return normalized(target) }
+        return current + signedDifference(from: current, to: target)
+    }
+
     /// Rotation for the needle relative to the top of the screen.
     static func needleRotation(bearing: Double, heading: Double?) -> Double {
         normalized(bearing - (heading ?? 0))
