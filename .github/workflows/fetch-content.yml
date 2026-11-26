@@ -1,0 +1,30 @@
+name: Fetch content
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - tools/fetch_quran_content.py
+      - .github/workflows/fetch-content.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify
+        run: python3 tools/fetch_quran_content.py
+      - name: Commit
+        run: |
+          git add FiveSkies/Resources/Quran
+          if git diff --cached --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+          git -c user.name="five-skies-ci" -c user.email="ci@users.noreply.github.com" commit -m "Fetch Quran text, metadata and font from their sources"
+          git push
