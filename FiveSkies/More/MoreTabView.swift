@@ -120,6 +120,7 @@ enum MoreTool: String, CaseIterable, Identifiable {
     case memorize
     case stories
     case themes
+    case sources
 
     var id: String { rawValue }
 
@@ -138,6 +139,7 @@ enum MoreTool: String, CaseIterable, Identifiable {
         case .memorize: return "Memorize"
         case .stories: return "Stories"
         case .themes: return "Themes"
+        case .sources: return "About and sources"
         }
     }
 
@@ -156,6 +158,7 @@ enum MoreTool: String, CaseIterable, Identifiable {
         case .memorize: return "bookmark"
         case .stories: return "book"
         case .themes: return "paintpalette"
+        case .sources: return "info.circle"
         }
     }
 
@@ -168,12 +171,13 @@ enum MoreTool: String, CaseIterable, Identifiable {
         case .duas, .memorize: return Color(red: 160 / 255, green: 120 / 255, blue: 240 / 255).opacity(0.45)
         case .ramadan: return Color(red: 240 / 255, green: 110 / 255, blue: 150 / 255).opacity(0.45)
         case .names, .themes: return Color(red: 240 / 255, green: 200 / 255, blue: 90 / 255).opacity(0.45)
+        case .sources: return Color.white.opacity(0.22)
         }
     }
 
     var isAvailable: Bool {
         switch self {
-        case .tracker, .tasbih, .zakat, .hijriCalendar: return true
+        case .tracker, .tasbih, .zakat, .hijriCalendar, .sources: return true
         default: return false
         }
     }
@@ -185,6 +189,7 @@ enum MoreTool: String, CaseIterable, Identifiable {
         case .tasbih: TasbihView()
         case .zakat: ZakatView()
         case .hijriCalendar: HijriCalendarView()
+        case .sources: SourcesView()
         default: EmptyView()
         }
     }

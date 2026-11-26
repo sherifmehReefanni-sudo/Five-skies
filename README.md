@@ -30,7 +30,9 @@ Makkah as its location, skips the location prompt, and freezes time in the middl
 
 This first milestone includes:
 
-- A five-tab layout: Today, Quran, Listen, Qibla, More. Only Today is built; the other tabs say "Coming soon".
+- A five-tab layout: Today, Quran, Listen, Qibla, More. Listen still says "Coming soon".
+- A Quran reader: the Tanzil Uthmani text shown exactly as published, in the Amiri Quran typeface, with sura and
+  juz lists, search, bookmarks, continue reading and an adjustable Arabic text size. Credits are under More, About and sources.
 - Prayer times for the day from the Adhan library (default method: North America (ISNA), Shafi madhab).
 - The living sky: five gradients, stars, sun or moon, and a mosque skyline, crossfading between periods.
 - Next prayer with a live countdown.

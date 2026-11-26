@@ -5,6 +5,8 @@ struct FiveSkiesApp: App {
     @StateObject private var location = LocationProvider()
     @StateObject private var settings: AppSettings
     @StateObject private var scheduler: NotificationScheduler
+    /// Loads the bundled Quran text once, off the main thread, for the Quran tab.
+    @StateObject private var quran = QuranStore()
 
     private let launch: LaunchOptions
     private let service: PrayerTimesService
@@ -42,7 +44,7 @@ struct FiveSkiesApp: App {
                 .legibleTabBar()
                 .tabItem { Label("Today", systemImage: "sun.max") }
 
-                ComingSoonView(title: "Quran")
+                QuranTabView()
                     .legibleTabBar()
                     .tabItem { Label("Quran", systemImage: "book") }
 
@@ -73,6 +75,7 @@ struct FiveSkiesApp: App {
             .environment(\.appClock, clock)
             .environmentObject(settings)
             .environmentObject(scheduler)
+            .environmentObject(quran)
         }
     }
 }
