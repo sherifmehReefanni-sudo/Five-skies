@@ -22,6 +22,16 @@ struct PrayerTimesService {
         PrayerTimesService(method: method.adhanMethod, madhab: asrRule.madhab, timeZone: timeZone)
     }
 
+    /// The same service computing days in `zone`.
+    func inTimeZone(_ zone: TimeZone) -> PrayerTimesService {
+        PrayerTimesService(method: method, madhab: madhab, timeZone: zone)
+    }
+
+    /// Prayer times for the day containing `date` in the place's own time zone, plus the next day's Fajr.
+    func prayerDay(for place: Place, on date: Date) -> PrayerDay? {
+        inTimeZone(place.timeZone).prayerDay(at: place.coordinate, on: date)
+    }
+
     /// Prayer times for the calendar day containing `date` in `timeZone`, plus the next day's Fajr.
     func prayerDay(at coordinate: Coordinate, on date: Date) -> PrayerDay? {
         let calendar = localCalendar

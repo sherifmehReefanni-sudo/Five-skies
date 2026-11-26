@@ -99,15 +99,48 @@ jobs:
             exit 0
           fi
           work=$(mktemp -d)
-          find screenshots -maxdepth 1 -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' \) | while read -r file; do
-            base=$(basename "$file")
-            case "$base" in
-              *_[0-9]_[0-9A-F]*-*) continue ;;
-            esac
-            cp "$file" "$work/$base"
-          done
+          python3 - "$work" <<'PY'
+          import json, os, re, shutil, sys
+          work = sys.argv[1]
+          manifest_path = os.path.join("screenshots", "manifest.json")
+          used = set()
+          def unique(name):
+              stem, ext = os.path.splitext(name)
+              candidate, count = name, 1
+              while candidate in used:
+                  count += 1
+                  candidate = "%s-%d%s" % (stem, count, ext)
+              used.add(candidate)
+              return candidate
+          copied = 0
+          if os.path.exists(manifest_path):
+              with open(manifest_path) as handle:
+                  manifest = json.load(handle)
+              for test in manifest:
+                  for item in test.get("attachments", []):
+                      exported = item.get("exportedFileName")
+                      if not exported:
+                          continue
+                      source = os.path.join("screenshots", exported)
+                      if not os.path.exists(source):
+                          continue
+                      ext = os.path.splitext(exported)[1] or ".png"
+                      wanted = item.get("suggestedHumanReadableName") or exported
+                      stem = os.path.splitext(wanted)[0]
+                      stem = re.sub(r"_\d+_[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}$", "", stem)
+                      stem = re.sub(r"[^A-Za-z0-9._-]+", "-", stem).strip("-") or "screenshot"
+                      shutil.copyfile(source, os.path.join(work, unique(stem + ext.lower())))
+                      copied += 1
+          if copied == 0:
+              print("No usable manifest; publishing the PNG files as they are.")
+              for name in sorted(os.listdir("screenshots")):
+                  if name.lower().endswith(".png"):
+                      shutil.copyfile(os.path.join("screenshots", name), os.path.join(work, unique(name)))
+          print("Publishing: " + ", ".join(sorted(used)))
+          PY
           if [ -z "$(ls -A "$work")" ]; then
-            cp screenshots/*.png "$work"/ 2>/dev/null || true
+            echo "No screenshots to publish."
+            exit 0
           fi
           for image in "$work"/*; do
             sips -Z 1300 "$image" >/dev/null 2>&1 || true

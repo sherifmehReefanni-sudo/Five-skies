@@ -68,6 +68,23 @@ struct PrayerDay: Equatable {
         return .isha
     }
 
+    /// The prayer whose time has begun at `date`, or nil between sunrise and Dhuhr when none has.
+    /// Before Fajr this is the previous night's Isha.
+    func currentPrayer(at date: Date) -> Prayer? {
+        if date < fajr { return .isha }
+        if date < sunrise { return .fajr }
+        if date < dhuhr { return nil }
+        if date < asr { return .dhuhr }
+        if date < maghrib { return .asr }
+        if date < isha { return .maghrib }
+        return .isha
+    }
+
+    /// The name of the current period for the "Now:" line: a prayer name, or "Morning".
+    func currentPeriodName(at date: Date) -> String {
+        currentPrayer(at: date)?.displayName ?? "Morning"
+    }
+
     /// The time window in which `skyPhase(at:)` returns `phase` (Isha runs to tomorrow's Fajr).
     func window(for phase: Prayer) -> DateInterval {
         switch phase {

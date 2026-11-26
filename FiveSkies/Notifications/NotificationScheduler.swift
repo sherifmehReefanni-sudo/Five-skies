@@ -12,7 +12,7 @@ final class NotificationScheduler: ObservableObject {
 
     private struct Context {
         let service: PrayerTimesService
-        let coordinate: Coordinate
+        let place: Place
         var preferences: AlertPreferences
     }
 
@@ -54,12 +54,14 @@ final class NotificationScheduler: ObservableObject {
     }
 
     /// Replaces this app's pending prayer notifications with a fresh plan for today and tomorrow.
-    func reschedule(service: PrayerTimesService, coordinate: Coordinate, preferences: AlertPreferences, now: Date) {
+    /// Days and day keys are worked out in the place's own time zone.
+    func reschedule(service base: PrayerTimesService, place: Place, preferences: AlertPreferences, now: Date) {
         guard isEnabled else { return }
-        lastContext = Context(service: service, coordinate: coordinate, preferences: preferences)
+        lastContext = Context(service: base, place: place, preferences: preferences)
 
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = service.timeZone
+        let service = base.inTimeZone(place.timeZone)
+        let coordinate = place.coordinate
+        let calendar = place.calendar
         var days: [PrayerDay] = []
         if let today = service.prayerDay(at: coordinate, on: now) {
             days.append(today)
@@ -100,7 +102,7 @@ final class NotificationScheduler: ObservableObject {
         guard let context = lastContext else { return }
         reschedule(
             service: context.service,
-            coordinate: context.coordinate,
+            place: context.place,
             preferences: context.preferences,
             now: Date()
         )

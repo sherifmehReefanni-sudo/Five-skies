@@ -20,7 +20,13 @@ struct QiblaTabView: View {
     }
 
     var body: some View {
-        QiblaScreen(coordinate: coordinate, fixedPhase: launch.fixedPhase, heading: headingProvider.heading)
+        QiblaScreen(
+            place: place,
+            fixedPhase: launch.fixedPhase,
+            heading: headingProvider.heading,
+            pillOpensSettings: requestsLocation && location.isDenied,
+            requestLocation: requestLocation
+        )
             .onAppear {
                 if requestsLocation {
                     location.start()
@@ -32,15 +38,24 @@ struct QiblaTabView: View {
             }
     }
 
-    /// The coordinate to use, or nil for the labelled Makkah fallback.
-    private var coordinate: Coordinate? {
+    /// Where the tab is for. The `-FSFixedCoordinate` override uses the device time zone;
+    /// with no location the labelled Makkah fallback is used, in Makkah's own time zone.
+    private var place: Place {
         if let fixed = qiblaLaunch.fixedCoordinate {
-            return fixed
+            return Place.device(fixed)
         }
         if launch.fixedPhase != nil {
-            return nil
+            return Place.makkahFallback
         }
-        return location.coordinate
+        if let coordinate = location.coordinate {
+            return Place.device(coordinate)
+        }
+        return Place.makkahFallback
+    }
+
+    private func requestLocation() {
+        guard requestsLocation else { return }
+        location.requestAgain()
     }
 
     private var requestsLocation: Bool {
@@ -49,15 +64,17 @@ struct QiblaTabView: View {
 }
 
 private struct QiblaScreen: View {
-    let coordinate: Coordinate?
+    let place: Place
     let fixedPhase: Prayer?
     let heading: Double?
+    let pillOpensSettings: Bool
+    let requestLocation: () -> Void
 
     @ScaledMetric(relativeTo: .largeTitle) private var bearingSize: CGFloat = 60
     @ScaledMetric(relativeTo: .largeTitle) private var titleSize: CGFloat = 34
 
     private var resolved: Coordinate {
-        coordinate ?? .makkah
+        place.coordinate
     }
 
     /// The Qibla direction is undefined at the Kaaba itself, so the fallback shows no number.
@@ -71,7 +88,7 @@ private struct QiblaScreen: View {
 
     var body: some View {
         ZStack {
-            QiblaSky(coordinate: resolved, fixedPhase: fixedPhase)
+            QiblaSky(place: place, fixedPhase: fixedPhase)
             ScrollView {
                 VStack(spacing: 0) {
                     header
@@ -104,21 +121,18 @@ private struct QiblaScreen: View {
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("qiblaTitle")
             Spacer(minLength: 8)
-            Text(locationText)
-                .font(.footnote.weight(.bold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .padding(.horizontal, 14)
-                .frame(minHeight: 44)
-                .background(Capsule().fill(Color.white.opacity(0.16)))
-                .overlay(Capsule().strokeBorder(Color.white.opacity(0.3), lineWidth: 1))
-                .accessibilityIdentifier("qiblaLocationPill")
+            LocationPill(
+                text: locationText,
+                opensSettings: pillOpensSettings,
+                identifier: "qiblaLocationPill",
+                request: requestLocation
+            )
         }
     }
 
     /// Same rules as the Today pill.
     private var locationText: String {
-        coordinate == nil ? "Makkah (set your location)" : "Current location"
+        place.isFallback ? LocationPillText.fallback : LocationPillText.current
     }
 
     @ViewBuilder
@@ -177,9 +191,10 @@ enum QiblaPalette {
     static let ink = Color(hex: 0x120B1F)
 }
 
-/// The app sky for the current prayer period at the coordinate, or the forced phase.
+/// The app sky for the current prayer period at the place, or the forced phase.
+/// The sun and moon are hidden so nothing bright sits behind the compass and bearing.
 private struct QiblaSky: View {
-    let coordinate: Coordinate
+    let place: Place
     let fixedPhase: Prayer?
 
     @Environment(\.appClock) private var clock
@@ -187,7 +202,7 @@ private struct QiblaSky: View {
 
     var body: some View {
         TimelineView(.periodic(from: clock.now(), by: 60)) { _ in
-            SkyView(phase: phase(at: clock.now()))
+            SkyView(phase: phase(at: clock.now()), showsCelestial: false)
         }
     }
 
@@ -195,6 +210,6 @@ private struct QiblaSky: View {
         if let fixed = fixedPhase {
             return fixed
         }
-        return service.prayerDay(at: coordinate, on: now)?.skyPhase(at: now) ?? .isha
+        return service.prayerDay(for: place, on: now)?.skyPhase(at: now) ?? .isha
     }
 }

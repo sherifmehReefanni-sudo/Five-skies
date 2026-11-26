@@ -29,6 +29,17 @@ final class PrayerDayTests: XCTestCase {
         XCTAssertEqual(day.skyPhase(at: at(hours: 24.25)), .isha)
     }
 
+    func testCurrentPeriodNameIncludesMorningBetweenSunriseAndDhuhr() {
+        XCTAssertEqual(day.currentPeriodName(at: at(hours: 2)), "Isha")
+        XCTAssertEqual(day.currentPeriodName(at: at(hours: 5.5)), "Fajr")
+        XCTAssertEqual(day.currentPeriodName(at: at(hours: 9)), "Morning")
+        XCTAssertNil(day.currentPrayer(at: at(hours: 9)))
+        XCTAssertEqual(day.currentPeriodName(at: at(hours: 13)), "Dhuhr")
+        XCTAssertEqual(day.currentPeriodName(at: at(hours: 17.5)), "Asr")
+        XCTAssertEqual(day.currentPeriodName(at: at(hours: 18.5)), "Maghrib")
+        XCTAssertEqual(day.currentPeriodName(at: at(hours: 22)), "Isha")
+    }
+
     func testMidpointHelperLandsInsideItsOwnPhase() {
         for phase in Prayer.allCases {
             XCTAssertEqual(day.skyPhase(at: day.midpoint(of: phase)), phase)

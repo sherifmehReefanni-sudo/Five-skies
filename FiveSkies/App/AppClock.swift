@@ -6,14 +6,14 @@ struct AppClock {
 
     static let system = AppClock(now: { Date() })
 
-    /// A clock frozen at the middle of `phase` for today's times at `coordinate`.
+    /// A clock frozen at the middle of `phase` for today's times at `place`, in the place's time zone.
     static func fixed(
         in phase: Prayer,
-        at coordinate: Coordinate,
+        at place: Place,
         service: PrayerTimesService,
         today: Date
     ) -> AppClock? {
-        guard let day = service.prayerDay(at: coordinate, on: today) else { return nil }
+        guard let day = service.prayerDay(for: place, on: today) else { return nil }
         let instant = day.midpoint(of: phase)
         return AppClock(now: { instant })
     }

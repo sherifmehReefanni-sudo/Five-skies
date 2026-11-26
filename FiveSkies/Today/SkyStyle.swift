@@ -2,6 +2,9 @@ import SwiftUI
 
 /// Colors and placements for one of the five skies, taken from the Skies mockup.
 /// Positions are fractions of the screen (x of width, y of height); sizes are fractions of width.
+/// The sun and moon sit in the band between the countdown pill and the skyline (about 0.50 to 0.56
+/// of the height) so they never sit behind the headline, the time or the pill. Maghrib's sun is lower,
+/// half behind the central dome.
 struct SkyStyle {
     struct Glow {
         let center: UnitPoint
@@ -62,7 +65,7 @@ struct SkyStyle {
             color: Color(hex: 0xF2B880, opacity: 0.55)
         ),
         celestial: Celestial(
-            center: UnitPoint(x: 0.8, y: 0.4),
+            center: UnitPoint(x: 0.8, y: 0.52),
             haloSize: 0.19,
             haloStops: [stop(0xF6EFD8, 0, opacity: 0.35), stop(0xF6EFD8, 0.7, opacity: 0)],
             bodySize: 0.09,
@@ -83,7 +86,7 @@ struct SkyStyle {
         starOpacities: [0, 0, 0],
         glow: nil,
         celestial: Celestial(
-            center: UnitPoint(x: 0.5, y: 0.44),
+            center: UnitPoint(x: 0.5, y: 0.53),
             haloSize: 0.82,
             haloStops: [
                 stop(0xFFFFF0, 0, opacity: 0.6), stop(0xFFFFF0, 0.35, opacity: 0.18),
@@ -116,7 +119,7 @@ struct SkyStyle {
             color: Color(hex: 0xFFD696, opacity: 0.45)
         ),
         celestial: Celestial(
-            center: UnitPoint(x: 0.73, y: 0.46),
+            center: UnitPoint(x: 0.72, y: 0.53),
             haloSize: 0.98,
             haloStops: [
                 stop(0xFFE2A0, 0, opacity: 0.6), stop(0xFFE2A0, 0.35, opacity: 0.2),
@@ -172,7 +175,7 @@ struct SkyStyle {
         starOpacities: [1, 1, 1],
         glow: nil,
         celestial: Celestial(
-            center: UnitPoint(x: 0.76, y: 0.42),
+            center: UnitPoint(x: 0.78, y: 0.53),
             haloSize: 0.82,
             haloStops: [
                 stop(0xDCE1FF, 0, opacity: 0.3), stop(0xDCE1FF, 0.35, opacity: 0.1),

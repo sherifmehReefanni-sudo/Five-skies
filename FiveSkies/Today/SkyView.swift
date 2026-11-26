@@ -1,12 +1,14 @@
 import SwiftUI
 
 /// Full-bleed living sky for a prayer period. Phase changes crossfade slowly.
+/// With `showsCelestial` false the sun and moon are left out; stars, gradient, glow and skyline stay.
 struct SkyView: View {
     let phase: Prayer
+    var showsCelestial = true
 
     var body: some View {
         ZStack {
-            SkyScene(style: SkyStyle.style(for: phase))
+            SkyScene(style: SkyStyle.style(for: phase), showsCelestial: showsCelestial)
                 .id(phase)
                 .transition(.opacity)
         }
@@ -21,6 +23,7 @@ private let skylineTopFraction: CGFloat = 0.52
 
 private struct SkyScene: View {
     let style: SkyStyle
+    let showsCelestial: Bool
 
     var body: some View {
         GeometryReader { geometry in
@@ -36,7 +39,9 @@ private struct SkyScene: View {
                 if let glow = style.glow {
                     GlowView(glow: glow, size: size)
                 }
-                CelestialView(celestial: style.celestial, size: size)
+                if showsCelestial {
+                    CelestialView(celestial: style.celestial, size: size)
+                }
                 SkylineView(style: style, width: size.width, top: skylineTop)
             }
             .frame(width: size.width, height: size.height)

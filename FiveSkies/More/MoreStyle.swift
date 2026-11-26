@@ -28,7 +28,8 @@ enum MoreSky {
         case .more:
             return [Color(hex: 0x0B1030), Color(hex: 0x2B2A7A), Color(hex: 0x6B3F8F), Color(hex: 0x120B1F)]
         case .tracker:
-            return [Color(hex: 0x0A1440), Color(hex: 0x3A3F8F), Color(hex: 0xB0688F), Color(hex: 0xF0A070)]
+            // Ends dark so the tab bar icons stay legible.
+            return [Color(hex: 0x0A1440), Color(hex: 0x3A3F8F), Color(hex: 0x5B4A8F), Color(hex: 0x2A1638)]
         case .tasbih:
             return [Color(hex: 0x03061A), Color(hex: 0x141E55), Color(hex: 0x2E2560)]
         case .zakat:
