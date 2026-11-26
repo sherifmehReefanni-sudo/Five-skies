@@ -12,6 +12,8 @@ concurrency:
 jobs:
   build-and-test:
     runs-on: macos-15
+    permissions:
+      contents: write
     timeout-minutes: 45
     steps:
       - name: Check out
@@ -86,6 +88,36 @@ jobs:
             echo "xcresulttool export attachments is not available; upload the full result bundle instead."
           fi
           ls -la screenshots
+
+      - name: Publish screenshots to the ci-screenshots branch
+        if: always()
+        env:
+          GH_PUSH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -z "$(ls -A screenshots 2>/dev/null)" ]; then
+            echo "No screenshots to publish."
+            exit 0
+          fi
+          work=$(mktemp -d)
+          find screenshots -maxdepth 1 -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' \) | while read -r file; do
+            base=$(basename "$file")
+            case "$base" in
+              *_[0-9]_[0-9A-F]*-*) continue ;;
+            esac
+            cp "$file" "$work/$base"
+          done
+          if [ -z "$(ls -A "$work")" ]; then
+            cp screenshots/*.png "$work"/ 2>/dev/null || true
+          fi
+          for image in "$work"/*; do
+            sips -Z 1300 "$image" >/dev/null 2>&1 || true
+          done
+          echo "$GITHUB_SHA" > "$work/COMMIT.txt"
+          cd "$work"
+          git init -q -b ci-screenshots
+          git add -A
+          git -c user.name="five-skies-ci" -c user.email="ci@users.noreply.github.com" commit -q -m "Screenshots for $GITHUB_SHA"
+          git push -f "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-screenshots || echo "Could not publish screenshots."
 
       - name: Upload screenshots
         if: always()
