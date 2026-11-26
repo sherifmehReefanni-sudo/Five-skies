@@ -7,10 +7,12 @@ struct TodayView: View {
     let requestsLocation: Bool
 
     @Environment(\.appClock) private var clock
+    @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
-        TimelineView(.periodic(from: clock.now(), by: 30)) { _ in
-            TodayScreen(now: clock.now(), coordinate: location.coordinate, service: service)
+        let configured = service.applying(method: settings.calculationMethod, asrRule: settings.asrRule)
+        return TimelineView(.periodic(from: clock.now(), by: 30)) { _ in
+            TodayScreen(now: clock.now(), coordinate: location.coordinate, service: configured)
         }
         .onAppear {
             if requestsLocation {
@@ -26,6 +28,9 @@ private struct TodayScreen: View {
     let service: PrayerTimesService
 
     @State private var prayed: Set<Prayer> = []
+    @State private var showsSettings = false
+    @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var scheduler: NotificationScheduler
     private let store = PrayedStore()
 
     var body: some View {
@@ -64,6 +69,25 @@ private struct TodayScreen: View {
         .task(id: store.dayKey(for: now)) {
             prayed = store.prayers(on: now)
         }
+        .task(id: scheduleKey(for: day)) {
+            scheduler.reschedule(
+                service: service,
+                coordinate: coordinate ?? .makkah,
+                preferences: settings.alertPreferences,
+                now: now
+            )
+        }
+        .sheet(isPresented: $showsSettings) {
+            SettingsView()
+                .environmentObject(settings)
+                .environmentObject(scheduler)
+        }
+    }
+
+    /// Changes when a new day's times are computed (new day, location, method or Asr rule).
+    private func scheduleKey(for day: PrayerDay) -> String {
+        let times = [day.fajr, day.asr, day.isha].map { String(Int($0.timeIntervalSince1970)) }
+        return ([store.dayKey(for: now)] + times).joined(separator: "|")
     }
 
     private var header: some View {
@@ -82,6 +106,17 @@ private struct TodayScreen: View {
                 .background(Capsule().fill(Color.white.opacity(0.16)))
                 .overlay(Capsule().strokeBorder(Color.white.opacity(0.3), lineWidth: 1))
                 .accessibilityIdentifier("locationPill")
+            Button {
+                showsSettings = true
+            } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 18, weight: .bold))
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(Color.white.opacity(0.16)))
+                    .overlay(Circle().strokeBorder(Color.white.opacity(0.3), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Settings")
         }
     }
 

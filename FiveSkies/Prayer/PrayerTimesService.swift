@@ -17,6 +17,11 @@ struct PrayerTimesService {
         self.timeZone = timeZone
     }
 
+    /// The same service using the user's chosen calculation method and Asr rule.
+    func applying(method: PrayerCalculationMethod, asrRule: AsrRule) -> PrayerTimesService {
+        PrayerTimesService(method: method.adhanMethod, madhab: asrRule.madhab, timeZone: timeZone)
+    }
+
     /// Prayer times for the calendar day containing `date` in `timeZone`, plus the next day's Fajr.
     func prayerDay(at coordinate: Coordinate, on date: Date) -> PrayerDay? {
         let calendar = localCalendar
