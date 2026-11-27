@@ -109,6 +109,8 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          FS_RELAY_BASE_URL: https://five-skies-relay.sherif-d13.workers.dev
+          FS_RELAY_APP_KEY: ${{ secrets.FS_RELAY_APP_KEY }}
           KEY_PATH: ${{ steps.key.outputs.path }}
           BUILD_NUMBER: ${{ steps.build_number.outputs.value }}
         run: |
@@ -122,11 +124,13 @@ jobs:
             -archivePath build/FiveSkies.xcarchive \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            FS_RELAY_BASE_URL="$FS_RELAY_BASE_URL" \
+            FS_RELAY_APP_KEY="$FS_RELAY_APP_KEY" \
             -allowProvisioningUpdates \
             -authenticationKeyPath "$KEY_PATH" \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-            2>&1 | tee build/logs/archive.log
+            2>&1 | sed "s/${FS_RELAY_APP_KEY:-__none__}/***/g" | tee build/logs/archive.log
 
       - name: Export and upload to App Store Connect
         env:

@@ -36,6 +36,8 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
+        FSRelayBaseURL: $(FS_RELAY_BASE_URL)
+        FSRelayAppKey: $(FS_RELAY_APP_KEY)
         LSRequiresIPhoneOS: true
         NSPhotoLibraryAddUsageDescription: Five Skies saves the wallpapers and ayah cards you choose to your photo library.
         NSLocationWhenInUseUsageDescription: Your location is used on this device to calculate prayer times and the Qibla direction. It is never sent anywhere.
@@ -52,6 +54,8 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        FS_RELAY_BASE_URL: ""
+        FS_RELAY_APP_KEY: ""
       configs:
         Debug:
           ENABLE_TESTABILITY: YES
