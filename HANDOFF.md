@@ -125,3 +125,5 @@ Waiting on Reef:
 FABLE CHECKPOINT (A1) still open: the discouraged windows, Duha start and Isha end definitions need a scholar's sign-off before any tester other than Reef.
 Not verified on a real phone: the night alarm on iOS 26, window-end reminders firing.
 Next build work: Phase A round 2 (A4 to A8).
+
+Note (Nov 27): App Store Connect warned on build 4 (ITMS-90725, not a failure): from April 2027 uploads need the iOS 27 SDK (Xcode 27). The TestFlight and compile-xcode-26 jobs now pick the newest Xcode 26 or later on the runner, so they move to Xcode 27 by themselves once GitHub installs it. Check before April 2027 that a run says Xcode 27.
