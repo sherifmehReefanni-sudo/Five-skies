@@ -87,7 +87,11 @@ Reef's feedback after installing build 0.1.0 (2) on his iPhone (Nov 27):
 - He wants creative screen transitions, for example a star crossing the sky when moving between screens.
 - He wants the look and graphics sharpened further so it feels elite.
 
-Not yet checked on the phone (ask him, do not assume): prayer times against his mosque or another app, Qibla direction, whether an alert fires, and downloading the Abdel Haleem translation in the reader (Aa, Translation).
+Checked by Reef on his iPhone (Nov 27, 07:15 ET):
+- CONFIRMED: prayer times match his mosque and Pillars.
+- CONFIRMED: Qibla points the same way as Pillars.
+- CONFIRMED: a text downloaded through the relay and showed under the verses. He called it the transliteration, so it may have been the "Transliteration" entry and not Abdel Haleem. Either way the relay and Content Sync work from inside the app.
+- UNVERIFIED: alerts. He said "I believe" one fired. Ask him to set one a few minutes ahead and confirm.
 
 First tasks for Opus, in order:
 1. Phase A0 in ROADMAP.md (transitions and visual polish).
