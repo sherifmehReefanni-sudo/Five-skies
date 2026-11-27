@@ -111,13 +111,22 @@ struct DayCardRules {
     }
 
     /// The optional fasting notes (white days, Monday, Thursday) stay away from Ramadan,
-    /// where they add nothing, and from the Eid days and the three days after Eid al-Adha.
+    /// where they add nothing, and from the days fasting is not allowed: the two Eid days
+    /// and the three days after Eid al-Adha.
+    ///
+    /// Fable review, Nov 27, 2026: the Hijri date here is calculated and a local moon
+    /// sighting can differ from it by a day. So the day on each side of those days is left
+    /// out too (2 Shawwal, 9 and 14 Dhul Hijjah). A fasting note must never show on a day
+    /// that is Eid where the user lives.
     static func fastingNotesApply(on day: HijriDay) -> Bool {
         if day.month == RamadanCalendar.ramadanMonth { return false }
-        if day.month == shawwal && day.day == 1 { return false }
-        if day.month == dhulHijjah && (10...13).contains(day.day) { return false }
+        if day.month == shawwal && day.day <= 2 { return false }
+        if day.month == dhulHijjah && (9...14).contains(day.day) { return false }
         return true
     }
+
+    /// Shown on the cards whose date depends on the moon sighting.
+    static let calculatedDateNote = "Calculated date. Your community may differ."
 
     static func ramadanCard(day: Int) -> DayCard {
         DayCard(
@@ -132,17 +141,17 @@ struct DayCardRules {
     static func card(_ kind: DayCardKind) -> DayCard {
         switch kind {
         case .eidAlFitr:
-            return DayCard(kind: kind, title: "Eid al-Fitr", subtitle: "A day of celebration", symbol: "sparkles")
+            return DayCard(kind: kind, title: "Eid al-Fitr", subtitle: calculatedDateNote, symbol: "sparkles")
         case .eidAlAdha:
-            return DayCard(kind: kind, title: "Eid al-Adha", subtitle: "A day of celebration", symbol: "sparkles")
+            return DayCard(kind: kind, title: "Eid al-Adha", subtitle: calculatedDateNote, symbol: "sparkles")
         case .dayOfArafah:
-            return DayCard(kind: kind, title: "The Day of Arafah", subtitle: "The day before Eid al-Adha", symbol: "mountain.2.fill")
+            return DayCard(kind: kind, title: "The Day of Arafah", subtitle: calculatedDateNote, symbol: "mountain.2.fill")
         case .ramadan:
             return ramadanCard(day: 1)
         case .friday:
             return DayCard(kind: kind, title: "It is Friday", subtitle: "The day of the Friday prayer", symbol: "sun.max.fill")
         case .whiteDay:
-            return DayCard(kind: kind, title: "One of the white days", subtitle: "Some fast on days 13, 14 and 15", symbol: "moonphase.full.moon")
+            return DayCard(kind: kind, title: "One of the white days", subtitle: "Some choose to fast today", symbol: "moonphase.full.moon")
         case .monday:
             return DayCard(kind: kind, title: "It is Monday", subtitle: "Some choose to fast today", symbol: "calendar")
         case .thursday:

@@ -17,6 +17,13 @@ enum DayDefinitions {
 
     /// Shown wherever these definitions are used.
     static let commonPracticeNote = "Common practice. Check with your local mosque."
+
+    /// Shown under the discouraged windows, so nobody reads "Sun setting" as a reason to
+    /// leave today's Asr. Fable wording, Nov 27, 2026; on the scholar sign-off list.
+    static let discouragedNote = "These times are about voluntary prayers. If you have not prayed today's Asr, pray it before Maghrib."
+
+    /// Shown under the "Isha ends at" choice. Fable wording, Nov 27, 2026; on the sign-off list.
+    static let ishaEndNote = "Schools differ. Many hold that the preferred time for Isha ends at the middle of the night and that it can still be prayed until Fajr."
 }
 
 /// The three times of day when voluntary prayer is discouraged.

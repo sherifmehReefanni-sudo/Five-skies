@@ -109,7 +109,13 @@ final class DayCardsTests: XCTestCase {
         XCTAssertFalse(DayCardRules.fastingNotesApply(on: HijriDay(year: 1448, month: 9, day: 13)))
         XCTAssertFalse(DayCardRules.fastingNotesApply(on: HijriDay(year: 1448, month: 10, day: 1)))
         XCTAssertFalse(DayCardRules.fastingNotesApply(on: HijriDay(year: 1448, month: 12, day: 13)))
-        XCTAssertTrue(DayCardRules.fastingNotesApply(on: HijriDay(year: 1448, month: 12, day: 14)))
+        // The day on each side of a no-fasting day is left out too (the date is calculated).
+        XCTAssertFalse(DayCardRules.fastingNotesApply(on: HijriDay(year: 1448, month: 10, day: 2)))
+        XCTAssertTrue(DayCardRules.fastingNotesApply(on: HijriDay(year: 1448, month: 10, day: 3)))
+        XCTAssertTrue(DayCardRules.fastingNotesApply(on: HijriDay(year: 1448, month: 12, day: 8)))
+        XCTAssertFalse(DayCardRules.fastingNotesApply(on: HijriDay(year: 1448, month: 12, day: 9)))
+        XCTAssertFalse(DayCardRules.fastingNotesApply(on: HijriDay(year: 1448, month: 12, day: 14)))
+        XCTAssertTrue(DayCardRules.fastingNotesApply(on: HijriDay(year: 1448, month: 12, day: 15)))
     }
 
     // MARK: - Hijri adjustment

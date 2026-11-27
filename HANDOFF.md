@@ -149,3 +149,14 @@ Fable decisions, in order:
 3. City name on the day view (`PlaceNameProvider.lookupsEnabled` is false): needs a privacy wording decision with Reef.
 4. Plan Phase B (ROADMAP): Quran Foundation production access, default translation, audio terms, Listen tab file ownership for Opus.
 Open replies: Darussalam (no reply as of Nov 27 12:30), sunnah.com issue #4540 and Islamic Network d/365 (not checked this session; GitHub blocks that repo here and the forum fetch needs approval).
+
+## Fable review (Nov 27, 2026, 14:00 ET)
+
+Decisions on the "For Fable next" list:
+1. School definitions: numbers left as they are (15, 5, 15, middle of night). Fable has no cited source for better numbers, so they stay UNVERIFIED. Added two notes on the day view (`DayDefinitions.discouragedNote`, `ishaEndNote`). The sign-off sheet is `docs/SCHOLAR_REVIEW.md`: 15 questions Reef takes to a scholar. Gate unchanged: no tester other than Reef until it is answered.
+2. Day cards: two fixes made. (a) Fasting notes are now also hidden on 2 Shawwal and on 9 and 14 Dhul Hijjah, because the calculated date can be a day off and a fasting note must never land on a local Eid. (b) The white day card no longer says "days 13, 14 and 15" (13 Dhul Hijjah is a no-fasting day); it says "Some choose to fast today". Eid and Arafah cards now say "Calculated date. Your community may differ."
+3. City name: waiting on Reef. Finding: the privacy page and the location prompt are already inaccurate, because "Mosques nearby" sends the location to Apple Maps and translations load through the relay. The wording must change before any outside tester whatever he picks. Options put to him: offline city list (Fable's pick), Apple's geocoder, or leave it off.
+4. Phase B plan: `docs/PHASE_B_PLAN.md`. Key point: QF terms cap saved audio files at 1 week, so "download for offline" is a 7-day save unless QF grants more. Terms were seen through search excerpts only; reading the full page is still open.
+Build 5: fine to ship to Reef only, once CI passes on this commit and he says yes.
+Not done: sunnah.com #4540 and Islamic Network d/365 were not checked (page fetches need Reef's approval and timed out). Darussalam not checked.
+Next: this is build work, switch to Opus for round B1 in `docs/PHASE_B_PLAN.md` and P1 once Reef answers the city name question.
