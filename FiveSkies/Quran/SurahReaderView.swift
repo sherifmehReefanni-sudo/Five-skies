@@ -391,13 +391,14 @@ private struct FollowAlongAyahText: View {
     @EnvironmentObject private var player: ListenPlayer
 
     var body: some View {
-        let highlight = FollowAlongState.highlight(
-            readerChapter: ayah.sura,
-            playingChapter: player.item?.chapter,
-            currentAyah: player.currentAyah,
-            currentWord: player.currentWord,
-            followAlong: followAlong
-        )
+        let highlight = FollowAlongFrozenFrame.highlight(for: ayah, followAlong: followAlong)
+            ?? FollowAlongState.highlight(
+                readerChapter: ayah.sura,
+                playingChapter: player.item?.chapter,
+                currentAyah: player.currentAyah,
+                currentWord: player.currentWord,
+                followAlong: followAlong
+            )
         let current = highlight?.ayah == ayah.number ? highlight : nil
         return Text(attributedText(current))
             .font(QuranPalette.arabicFont(size: size))
@@ -458,5 +459,29 @@ private struct FollowAlongTimingsWatcher: View {
                 }
                 #endif
             }
+    }
+}
+
+/// The `-FSHighlightWord <sura>:<ayah>:<word>` testing hook: draws that word as the playing word,
+/// frozen, with no player and no timings, so a screenshot can show how the highlight renders.
+/// It uses the same ranges and the same drawing as real playback. No effect without the argument.
+enum FollowAlongFrozenFrame {
+    static let argument = "-FSHighlightWord"
+
+    private static let target: (sura: Int, ayah: Int, word: Int)? = {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: argument), arguments.indices.contains(index + 1) else {
+            return nil
+        }
+        let parts = arguments[index + 1].split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        return (parts[0], parts[1], parts[2])
+    }()
+
+    static func highlight(for ayah: Ayah, followAlong: SurahFollowAlong?) -> FollowAlongHighlight? {
+        guard let target, target.sura == ayah.sura, target.ayah == ayah.number,
+              let range = followAlong?.text(forAyah: ayah.number)?.range(ofWord: target.word)
+        else { return nil }
+        return .word(ayah: ayah.number, range: range)
     }
 }

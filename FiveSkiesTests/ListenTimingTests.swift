@@ -524,6 +524,21 @@ final class ListenTimingTests: XCTestCase {
         XCTAssertEqual(cleared, [])
     }
 
+    func testCacheEntriesExpireAfterADay() async {
+        let relay = TimingTestRelay()
+        relay.serve(Self.path(7, 1), json: Self.singleAyahJSON(chapter: 1))
+        final class Clock: @unchecked Sendable { var date = Date(timeIntervalSince1970: 1_800_000_000) }
+        let clock = Clock()
+        let provider = RelayTimingProvider(client: relay, now: { clock.date })
+        _ = await provider.timings(reciterID: 7, chapter: 1)
+        clock.date = clock.date.addingTimeInterval(RelayTimingProvider.maxAge - 60)
+        _ = await provider.timings(reciterID: 7, chapter: 1)
+        XCTAssertEqual(relay.requested.count, 1, "Within a day the memory copy is used")
+        clock.date = clock.date.addingTimeInterval(120)
+        _ = await provider.timings(reciterID: 7, chapter: 1)
+        XCTAssertEqual(relay.requested.count, 2, "After a day it is fetched again")
+    }
+
     func testCacheIsPerReciter() async {
         let relay = TimingTestRelay()
         relay.serve(Self.path(7, 1), json: Self.singleAyahJSON(chapter: 1))

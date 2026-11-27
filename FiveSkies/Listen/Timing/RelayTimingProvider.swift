@@ -3,8 +3,9 @@ import Foundation
 /// Ayah and word timings from Quran Foundation (`chapter_recitations` with `segments=true`),
 /// reached through the Five Skies relay.
 ///
-/// - Fetched when a surah plays and held in memory only: the last `cacheLimit` surahs.
-///   Nothing is written to disk (an offline copy needs Content Sync, which comes with the 7 day save).
+/// - Fetched when a surah plays and held in memory only: the last `cacheLimit` surahs, each for at
+///   most `maxAge` (24 hours). Nothing is ever written to disk from this path; surahs saved for
+///   offline get their timings through Content Sync (docs/PHASE_B_PLAN.md).
 /// - Returns nil on any failure; the player then greys its timing features. Failures are not
 ///   remembered, so the next play tries again.
 actor RelayTimingProvider: SurahTimingProviding {
@@ -14,6 +15,8 @@ actor RelayTimingProvider: SurahTimingProviding {
     }
 
     static let cacheLimit = 10
+    /// An entry older than this is dropped and fetched again.
+    static let maxAge: TimeInterval = 24 * 60 * 60
     static let chapterRange = 1...114
 
     static func path(reciterID: Int, chapter: Int) -> String {
@@ -22,20 +25,26 @@ actor RelayTimingProvider: SurahTimingProviding {
 
     private let client: any RelayFetching
     private var cache: [Key: SurahTimings] = [:]
+    private var storedAt: [Key: Date] = [:]
+    private let now: @Sendable () -> Date
     /// Cached keys, least recently used first.
     private var recent: [Key] = []
     private var inFlight: [Key: Task<SurahTimings?, Never>] = [:]
 
-    init(client: any RelayFetching) {
+    init(client: any RelayFetching, now: @escaping @Sendable () -> Date = { Date() }) {
         self.client = client
+        self.now = now
     }
 
     func timings(reciterID: Int, chapter: Int) async -> SurahTimings? {
         guard reciterID > 0, Self.chapterRange.contains(chapter) else { return nil }
         let key = Key(reciterID: reciterID, chapter: chapter)
         if let hit = cache[key] {
-            touch(key)
-            return hit
+            if let stored = storedAt[key], now().timeIntervalSince(stored) <= Self.maxAge, now() >= stored {
+                touch(key)
+                return hit
+            }
+            drop(key)
         }
         if let running = inFlight[key] {
             return await running.value
@@ -60,7 +69,14 @@ actor RelayTimingProvider: SurahTimingProviding {
 
     func clearCache() {
         cache = [:]
+        storedAt = [:]
         recent = []
+    }
+
+    private func drop(_ key: Key) {
+        cache[key] = nil
+        storedAt[key] = nil
+        recent.removeAll { $0 == key }
     }
 
     private func touch(_ key: Key) {
@@ -70,10 +86,12 @@ actor RelayTimingProvider: SurahTimingProviding {
 
     private func store(_ timings: SurahTimings, for key: Key) {
         cache[key] = timings
+        storedAt[key] = now()
         touch(key)
         while recent.count > Self.cacheLimit {
             let oldest = recent.removeFirst()
             cache[oldest] = nil
+            storedAt[oldest] = nil
         }
     }
 

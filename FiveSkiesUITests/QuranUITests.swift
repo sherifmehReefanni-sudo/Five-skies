@@ -64,3 +64,34 @@ final class QuranUITests: XCTestCase {
         add(attachment)
     }
 }
+
+/// Fable condition 1 (C1): the same ayah with and without a frozen word highlight, so the two
+/// screenshots can be compared pixel for pixel (glyph shapes must match; only colour may differ).
+final class FollowAlongHighlightUITests: XCTestCase {
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+    }
+
+    @MainActor
+    func testHighlightedAndPlainAyahScreenshots() throws {
+        for (name, extra) in [("reader-plain", [String]()), ("reader-highlight", ["-FSHighlightWord", "1:2:2"])] {
+            let app = XCUIApplication()
+            app.launchArguments = ["-FSFixedPhase", "isha"] + extra
+            app.launch()
+            let quranTab = app.tabBars.buttons["Quran"]
+            XCTAssertTrue(quranTab.waitForExistence(timeout: 20), "Quran tab button did not appear")
+            quranTab.tap()
+            let firstSura = app.buttons["suraRow-1"]
+            XCTAssertTrue(firstSura.waitForExistence(timeout: 20), "The sura list did not load")
+            firstSura.tap()
+            let ayah = app.buttons["ayah-2"]
+            XCTAssertTrue(ayah.waitForExistence(timeout: 20), "Ayah 2 did not appear")
+            Thread.sleep(forTimeInterval: 1.5)
+            let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            shot.name = name
+            shot.lifetime = .keepAlways
+            add(shot)
+            app.terminate()
+        }
+    }
+}
