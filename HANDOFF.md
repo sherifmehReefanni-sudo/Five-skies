@@ -238,3 +238,11 @@ Optional: `FollowAlongAyahText` rebuilds every visible ayah on each player updat
 
 Good news from reading the Quran Foundation terms page: offline audio downloads with no time limit ARE allowed under five conditions. docs/PHASE_B_PLAN.md is corrected (new D1, D2 dropped).
 Next: build work, switch to Opus: condition 1, then TestFlight (needs Reef's yes), then round C2 (Learn tab).
+
+## Fable C1 conditions 1 and 2: done (Nov 27, 19:00 ET, Opus)
+
+Commit fd7c80f, CI passing.
+- Condition 1: new UI test `FollowAlongHighlightUITests` takes `reader-plain` and `reader-highlight` (surah 1, ayah 2, word 2 frozen with `-FSHighlightWord 1:2:2`, same drawing path as playback). Pixel comparison of the ayah card: glyph ink 2,826 vs 2,758 pixels at the same threshold, XOR 68 pixels, all at anti-aliased edges; the best alignment of the gold word against the plain one is a shift of 0 pixels. Only the colour changes (plus the faint gold card tint behind the current ayah, which changes the background the edges blend into). Shapes and positions are the same: CONFIRMED by measurement.
+- Condition 2: `RelayTimingProvider` drops an entry after 24 hours (`maxAge`), memory only; unit test added.
+Condition 3 (production W4 for all 114 surahs and the letter-count probe) stays open until production access.
+Next: TestFlight for C1 needs Reef's yes.
