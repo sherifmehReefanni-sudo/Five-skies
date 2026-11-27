@@ -118,11 +118,11 @@ final class OnboardingTests: XCTestCase {
     func testLocationReasonMatchesUsageDescription() throws {
         let reason = OnboardingPage.location.message
         XCTAssertTrue(reason.contains("calculated on your iPhone"))
-        XCTAssertTrue(reason.contains("never sent anywhere"))
+        XCTAssertTrue(reason.contains("never sent to us"))
         guard let usage = Bundle.main.object(forInfoDictionaryKey: "NSLocationWhenInUseUsageDescription") as? String else {
             throw XCTSkip("The app Info.plist is not visible from this test host")
         }
-        XCTAssertTrue(usage.contains("never sent anywhere"))
+        XCTAssertTrue(usage.contains("never sent to us"))
         XCTAssertTrue(usage.contains("prayer times"))
     }
 

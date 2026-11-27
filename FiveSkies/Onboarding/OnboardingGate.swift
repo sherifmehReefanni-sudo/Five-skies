@@ -129,7 +129,7 @@ enum OnboardingPage: Int, CaseIterable, Identifiable {
     }
 
     /// Matches NSLocationWhenInUseUsageDescription in project.yml.
-    static let locationReason = "Prayer times and the Qibla are calculated on your iPhone. Your location is never sent anywhere."
+    static let locationReason = "Prayer times and the Qibla are calculated on your iPhone. Your location is never sent to us. Apple Maps sees it only when you search for mosques or halal food."
 
     var primaryTitle: String {
         switch self {

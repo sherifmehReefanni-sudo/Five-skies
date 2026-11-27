@@ -40,7 +40,7 @@ targets:
         FSRelayAppKey: $(FS_RELAY_APP_KEY)
         LSRequiresIPhoneOS: true
         NSPhotoLibraryAddUsageDescription: Five Skies saves the wallpapers and ayah cards you choose to your photo library.
-        NSLocationWhenInUseUsageDescription: Your location is used on this device to calculate prayer times and the Qibla direction. It is never sent anywhere.
+        NSLocationWhenInUseUsageDescription: Your location is used on this iPhone to calculate prayer times and the Qibla direction, and is never sent to us. Apple Maps sees it only when you search for mosques or halal food.
         NSAlarmKitUsageDescription: Five Skies sets an alarm only for the night alarm you turn on in settings.
         UIAppFonts:
           - AmiriQuran.ttf
