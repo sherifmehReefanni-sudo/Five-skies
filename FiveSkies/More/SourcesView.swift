@@ -5,6 +5,8 @@ import SwiftUI
 struct SourcesView: View {
     private let tanzilURL = URL(string: "https://tanzil.net")
 
+    @EnvironmentObject private var translations: TranslationStore
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
@@ -23,6 +25,15 @@ struct SourcesView: View {
                             .foregroundStyle(MorePalette.gold)
                         }
                         .accessibilityIdentifier("sourcesTanzilLink")
+                    }
+                }
+
+                card {
+                    Text("Translations: provided by Quran Foundation. Each translation is shown unmodified and credited to its translator.")
+                    ForEach(translations.downloaded) { summary in
+                        Text(verbatim: TranslationText.attribution(name: summary.name, authorName: summary.authorName))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(MorePalette.secondaryText)
                     }
                 }
 

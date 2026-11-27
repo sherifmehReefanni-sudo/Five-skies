@@ -13,6 +13,7 @@ struct SurahReaderView: View {
     @EnvironmentObject private var quran: QuranStore
     @EnvironmentObject private var bookmarks: QuranBookmarksStore
     @EnvironmentObject private var lastRead: QuranLastReadStore
+    @EnvironmentObject private var translations: TranslationStore
 
     @AppStorage(SurahReaderView.textSizeKey) private var textSize: Double = SurahReaderView.defaultTextSize
 
@@ -52,11 +53,15 @@ struct SurahReaderView: View {
         }
         .sheet(isPresented: $showsTextSize) {
             ReaderTextSizeSheet(size: $textSize)
+                .environmentObject(translations)
                 .presentationDetents([.height(300), .medium])
                 .presentationDragIndicator(.visible)
         }
         .onDisappear {
             saveTask?.cancel()
+        }
+        .task {
+            await translations.readerOpened()
         }
     }
 
@@ -98,12 +103,20 @@ struct SurahReaderView: View {
                             .onDisappear { visibleAyahs.remove(ayah.number) }
                     }
 
-                    Text("Translations and tafsir are coming soon.")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(MorePalette.secondaryText)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
+                    if let loaded = translations.loaded {
+                        TranslationAttributionFooter(
+                            summary: loaded.summary,
+                            needsRefresh: translations.needsRefresh(loaded.summary)
+                        )
                         .padding(.top, 8)
+                    } else {
+                        Text(translations.isConnected ? "Choose a translation in Aa. Tafsir is coming soon." : "Translations and tafsir are coming soon.")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(MorePalette.secondaryText)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 8)
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -192,6 +205,7 @@ struct SurahReaderView: View {
     private func ayahButton(_ ayah: Ayah, data: QuranData, size: CGFloat) -> some View {
         let isBookmarked = bookmarks.contains(ayah.ref)
         let captions = Self.captions(for: ayah.ref, in: data)
+        let translation = translations.text(for: ayah.sura, aya: ayah.number)
         return Button {
             selectedAyah = ayah
             showsActions = true
@@ -207,6 +221,10 @@ struct SurahReaderView: View {
                     .padding(.top, size * 0.2)
                     .environment(\.layoutDirection, .rightToLeft)
                     .quranSpeechLanguage("ar")
+
+                if let translation {
+                    AyahTranslationText(text: translation)
+                }
 
                 HStack(spacing: 8) {
                     ForEach(captions, id: \.self) { caption in
@@ -234,9 +252,15 @@ struct SurahReaderView: View {
         .buttonStyle(.plain)
         .quranFadeIn()
         .accessibilityLabel(Text(verbatim: Self.ayahAccessibilityLabel(ayah: ayah.number, captions: captions, bookmarked: isBookmarked)))
-        .accessibilityValue(Text(verbatim: ayah.displayText))
+        .accessibilityValue(Text(verbatim: Self.ayahAccessibilityValue(arabic: ayah.displayText, translation: translation)))
         .accessibilityHint("Shows bookmark, copy and share")
         .accessibilityIdentifier("ayah-\(ayah.number)")
+    }
+
+    /// The Arabic as stored, then the translation when one is shown.
+    static func ayahAccessibilityValue(arabic: String, translation: String?) -> String {
+        guard let translation, !translation.isEmpty else { return arabic }
+        return "\(arabic)\nTranslation: \(translation)"
     }
 
     static func ayahAccessibilityLabel(ayah: Int, captions: [String], bookmarked: Bool) -> String {
@@ -308,7 +332,7 @@ struct QuranActivityView: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
-/// The "Aa" sheet: Arabic text size, and a note that translations are coming.
+/// The "Aa" sheet: Arabic text size and the translation choice.
 struct ReaderTextSizeSheet: View {
     @Binding var size: Double
 
@@ -348,17 +372,7 @@ struct ReaderTextSizeSheet: View {
                 .accessibilityIdentifier("textSizeSlider")
             }
 
-            HStack {
-                Text("Translations: coming soon")
-                    .font(.headline)
-                    .foregroundStyle(MorePalette.secondaryText)
-                Spacer()
-            }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 14)
-            .moreGlass(.light, cornerRadius: 18)
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("translationsComingSoon")
+            TranslationSettingsRow()
 
             Spacer(minLength: 0)
         }

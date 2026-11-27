@@ -50,9 +50,15 @@ struct TipJarView: View {
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("tipLoading")
         case .unavailable:
-            Text("Tips are not available yet.")
-                .font(.headline)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Five Skies is free and has no ads. If it helps you, a tip helps keep it running.")
+                    .font(.body.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Tips are not available yet.")
+                    .font(.subheadline)
+                    .foregroundStyle(MorePalette.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
                 .padding(18)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .moreGlass(.dark, cornerRadius: 24)

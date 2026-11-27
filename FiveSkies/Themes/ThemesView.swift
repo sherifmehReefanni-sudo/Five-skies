@@ -30,17 +30,22 @@ struct ThemesView: View {
                             themeCard(theme)
                         }
                     }
-                    MoreCaption(text: "Wallpapers for your phone")
-                        .padding(.top, 8)
-                    HStack(alignment: .top, spacing: 12) {
-                        ForEach(ThemeWallpaper.allCases) { wallpaper in
-                            wallpaperCard(wallpaper)
+                    VStack(alignment: .leading, spacing: 14) {
+                        MoreCaption(text: "Wallpapers for your phone")
+                        HStack(alignment: .top, spacing: 12) {
+                            ForEach(ThemeWallpaper.allCases) { wallpaper in
+                                wallpaperCard(wallpaper)
+                            }
                         }
+                        Text("Save opens the share sheet. Choose Save Image to keep it in Photos.")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(MorePalette.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    Text("Save opens the share sheet. Choose Save Image to keep it in Photos.")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(MorePalette.secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .moreGlass(.dark, cornerRadius: 24)
+                    .padding(.top, 8)
                 }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 16)

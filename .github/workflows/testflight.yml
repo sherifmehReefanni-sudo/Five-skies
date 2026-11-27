@@ -1,0 +1,178 @@
+name: TestFlight
+
+# Builds a signed Release archive and uploads it to App Store Connect (TestFlight).
+# Run it by hand from the Actions tab. See docs/TESTFLIGHT.md for the one-time setup.
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Build number (leave empty to use this workflow's run number)"
+        required: false
+        default: ""
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  testflight:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Check that the required secrets are set
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=""
+          [ -n "$ASC_KEY_ID" ] || missing="$missing ASC_KEY_ID"
+          [ -n "$ASC_ISSUER_ID" ] || missing="$missing ASC_ISSUER_ID"
+          [ -n "$ASC_KEY_P8_BASE64" ] || missing="$missing ASC_KEY_P8_BASE64"
+          [ -n "$APPLE_TEAM_ID" ] || missing="$missing APPLE_TEAM_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::These repository secrets are missing or empty:$missing. Add them under Settings > Secrets and variables > Actions (see docs/TESTFLIGHT.md)."
+            exit 1
+          fi
+          if ! printf '%s' "$ASC_KEY_ID" | grep -Eq '^[A-Za-z0-9]+$'; then
+            echo "::error::ASC_KEY_ID should be only letters and digits (the Key ID shown in App Store Connect, for example 2X9R4HXF34). Check for spaces or extra text."
+            exit 1
+          fi
+          if ! printf '%s' "$APPLE_TEAM_ID" | grep -Eq '^[A-Z0-9]{10}$'; then
+            echo "::error::APPLE_TEAM_ID should be the 10 character Team ID (capital letters and digits) from developer.apple.com > Account > Membership details."
+            exit 1
+          fi
+          echo "All four secrets are present."
+
+      - name: Choose the build number
+        id: build_number
+        env:
+          INPUT_BUILD_NUMBER: ${{ github.event.inputs.build_number }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          BUILD="${INPUT_BUILD_NUMBER:-$RUN_NUMBER}"
+          if ! printf '%s' "$BUILD" | grep -Eq '^[0-9]+(\.[0-9]+){0,2}$'; then
+            echo "::error::Build number '$BUILD' is not valid. Use digits, for example 12 (or 12.1)."
+            exit 1
+          fi
+          echo "Build number: $BUILD"
+          echo "value=$BUILD" >> "$GITHUB_OUTPUT"
+
+      - name: Select Xcode 26 (App Store uploads must be built with Xcode 26 or later)
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$XCODE" ]; then
+            echo "::error::No Xcode 26 found on this runner. Available:"
+            ls -d /Applications/Xcode*.app
+            exit 1
+          fi
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Install the App Store Connect API key
+        id: key
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: |
+          set -o pipefail
+          mkdir -p "$HOME/private_keys"
+          chmod 700 "$HOME/private_keys"
+          KEY_PATH="$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          # Strip any spaces or Windows line endings before decoding.
+          printf '%s' "$ASC_KEY_P8_BASE64" | tr -d ' \r\n\t' | base64 --decode > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          if ! grep -q "BEGIN PRIVATE KEY" "$KEY_PATH"; then
+            echo "::error::ASC_KEY_P8_BASE64 did not decode to a .p8 private key. Re-create the secret from the downloaded AuthKey file (see docs/TESTFLIGHT.md, step 3)."
+            exit 1
+          fi
+          echo "Key written."
+          echo "path=$KEY_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Archive (Release, signed)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEY_PATH: ${{ steps.key.outputs.path }}
+          BUILD_NUMBER: ${{ steps.build_number.outputs.value }}
+        run: |
+          set -o pipefail
+          mkdir -p build/logs
+          xcodebuild archive \
+            -project FiveSkies.xcodeproj \
+            -scheme FiveSkies \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath build/FiveSkies.xcarchive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            2>&1 | tee build/logs/archive.log
+
+      - name: Export and upload to App Store Connect
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEY_PATH: ${{ steps.key.outputs.path }}
+        run: |
+          set -o pipefail
+          mkdir -p build/logs
+          cp ExportOptions.plist build/ExportOptions.plist
+          /usr/libexec/PlistBuddy -c "Set :teamID $APPLE_TEAM_ID" build/ExportOptions.plist
+          xcodebuild -exportArchive \
+            -archivePath build/FiveSkies.xcarchive \
+            -exportOptionsPlist build/ExportOptions.plist \
+            -exportPath build/export \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            2>&1 | tee build/logs/export.log
+          echo "Uploaded. The build appears in App Store Connect > TestFlight after Apple finishes processing (often 5 to 30 minutes)."
+
+      - name: Collect distribution logs
+        if: failure()
+        run: |
+          mkdir -p build/logs
+          # xcodebuild -exportArchive writes detailed logs to a temporary *.xcdistributionlogs folder.
+          find "${TMPDIR:-/tmp}" /tmp -maxdepth 3 -name "*.xcdistributionlogs" -type d 2>/dev/null | while read -r dir; do
+            cp -R "$dir" build/logs/ || true
+          done
+          # Never upload key material.
+          find build/logs -name "*.p8" -delete || true
+          ls -la build/logs
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testflight-logs
+          path: build/logs/
+          if-no-files-found: warn
+
+      - name: Remove the API key
+        if: always()
+        run: |
+          rm -rf "$HOME/private_keys"
+          rm -f build/ExportOptions.plist
+          echo "Key removed."

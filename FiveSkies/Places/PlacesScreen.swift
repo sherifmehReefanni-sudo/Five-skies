@@ -79,6 +79,48 @@ extension PlaceKind {
     }
 }
 
+/// A small single-colour mosque: a central dome with a thin finial and two slim minarets.
+struct MosqueGlyph: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width
+        let h = rect.height
+        func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: rect.minX + x * w, y: rect.minY + y * h)
+        }
+        func box(_ x0: CGFloat, _ y0: CGFloat, _ x1: CGFloat, _ y1: CGFloat) -> CGRect {
+            CGRect(x: rect.minX + x0 * w, y: rect.minY + y0 * h, width: (x1 - x0) * w, height: (y1 - y0) * h)
+        }
+
+        var path = Path()
+
+        // Dome.
+        path.move(to: point(0.30, 0.62))
+        path.addQuadCurve(to: point(0.70, 0.62), control: point(0.50, 0.02))
+        path.closeSubpath()
+
+        // Thin finial above the dome.
+        path.addRect(box(0.485, 0.14, 0.515, 0.33))
+        path.addEllipse(in: box(0.46, 0.09, 0.54, 0.17))
+
+        // Prayer hall under the dome.
+        path.addRect(box(0.26, 0.62, 0.74, 0.88))
+
+        // Two slim minarets, each with a pointed cap.
+        for (left, right) in [(CGFloat(0.09), CGFloat(0.19)), (CGFloat(0.81), CGFloat(0.91))] {
+            path.addRect(box(left, 0.40, right, 0.88))
+            path.move(to: point(left - 0.01, 0.40))
+            path.addLine(to: point((left + right) / 2, 0.20))
+            path.addLine(to: point(right + 0.01, 0.40))
+            path.closeSubpath()
+        }
+
+        // Ground line.
+        path.addRect(box(0.05, 0.88, 0.95, 0.93))
+
+        return path
+    }
+}
+
 /// The shared places screen: a map panel, then a glass list of results, then the source note.
 struct PlacesScreen: View {
     let kind: PlaceKind
@@ -200,9 +242,7 @@ struct PlacesScreen: View {
                 // A plain panel stands in for the map in the screenshot mode and before a location is known.
                 ZStack {
                     kind.panelGradient
-                    Image(systemName: kind.symbol)
-                        .font(.system(size: 40, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.85))
+                    placeholderGlyph
                 }
                 .accessibilityElement()
                 .accessibilityLabel(Text("Map"))
@@ -213,6 +253,22 @@ struct PlacesScreen: View {
         .clipShape(panelShape)
         .overlay(panelShape.strokeBorder(Color.white.opacity(0.3), lineWidth: 1))
         .accessibilityIdentifier("placesMap")
+    }
+
+    /// The placeholder glyph: a drawn mosque for mosques, the fork and knife symbol for halal food.
+    @ViewBuilder
+    private var placeholderGlyph: some View {
+        switch kind {
+        case .mosques:
+            MosqueGlyph()
+                .fill(Color.white.opacity(0.85))
+                .frame(width: 64, height: 64)
+                .accessibilityHidden(true)
+        case .halal:
+            Image(systemName: kind.symbol)
+                .font(.system(size: 40, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.85))
+        }
     }
 
     private var mapPlaces: [PlaceResult] {

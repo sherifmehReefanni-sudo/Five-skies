@@ -7,6 +7,8 @@ struct FiveSkiesApp: App {
     @StateObject private var scheduler: NotificationScheduler
     /// Loads the bundled Quran text once, off the main thread, for the Quran tab.
     @StateObject private var quran = QuranStore()
+    /// Quran Foundation translations, kept offline only through Content Sync.
+    @StateObject private var translations = TranslationStore.live()
 
     private let launch: LaunchOptions
     private let service: PrayerTimesService
@@ -80,6 +82,7 @@ struct FiveSkiesApp: App {
             .environmentObject(settings)
             .environmentObject(scheduler)
             .environmentObject(quran)
+            .environmentObject(translations)
         }
     }
 }
