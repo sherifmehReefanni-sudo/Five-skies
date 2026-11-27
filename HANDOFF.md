@@ -180,3 +180,12 @@ Done and passing CI (run 46058474074, commit ef6023b; bar backing fix 04ba96b):
 UNVERIFIED: audio host for relative URLs (assumed download.quranicaudio.com); real playback, lock screen controls and interruptions on a device; which reciters prelive lists.
 Next: relay deploy, then a TestFlight build for B1 (needs Reef's yes). Then round B2 per docs/PHASE_B_PLAN.md (timings, 7 day save; the reader highlight hook is a Fable checkpoint).
 TestFlight run 46064728004 (Reef's yes, 15:35 ET) succeeded: build 0.1.0 (6) with B1, city names and the new location wording.
+
+## Reef's Listen and learning request (Nov 27, 15:51 ET), for Fable to plan
+
+Reef confirmed recitation plays in the Listen tab on build 6. He wants:
+1. Listen shows the Quran text while it plays, with the translation and the transliteration under each ayah, and a highlight that moves word by word (follow along).
+2. Play modes instead of stopping at the end of each surah: stop at end of surah, continuous play into the next surah, and other options (Fable may suggest more creative ones).
+3. Rethink the tabs: the Quran tab (text with meaning underneath) becomes the Memorize and learning section, an education piece with a guided "instructor" walk-through, audio for enunciation, and help learning faster, for example the most frequent words of the Quran (Reef recalls about 400 words; UNVERIFIED). Listen keeps the text for following along.
+Fable checkpoints this touches: 1 (Quran text display and word splitting, highlight hook), 2 (source and license for word-by-word translation, transliteration and any frequent-word list or teaching content), 3 (plan and file ownership for a large feature, tab restructure).
+Opus can build item 2 (play modes) now without a checkpoint; it does not touch Quran text.
