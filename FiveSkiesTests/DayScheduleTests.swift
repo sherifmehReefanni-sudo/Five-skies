@@ -190,23 +190,4 @@ final class DayScheduleTests: XCTestCase {
         XCTAssertEqual(DayViewContent.hijriAdjustmentText(-1), "-1 day")
         XCTAssertEqual(DayViewContent.hijriAdjustmentText(-2), "-2 days")
     }
-
-    // MARK: Place name
-
-    func testFallbackNeedsNoLookupAndCachedNamesAreReused() async throws {
-        let suite = "DayScheduleTests.placeNames"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
-        defer { defaults.removePersistentDomain(forName: suite) }
-
-        let coordinate = Coordinate(latitude: 40.7128, longitude: -74.0060)
-        XCTAssertEqual(PlaceNameProvider.cacheKey(for: coordinate), "40.71,-74.01")
-        defaults.set(["40.71,-74.01": "New York"], forKey: "placeName.cache")
-
-        let provider = PlaceNameProvider(defaults: defaults)
-        let fallback = await provider.cityName(for: Place.makkahFallback)
-        XCTAssertNil(fallback)
-        let cached = await provider.cityName(for: Place.device(coordinate))
-        XCTAssertEqual(cached, "New York")
-    }
 }

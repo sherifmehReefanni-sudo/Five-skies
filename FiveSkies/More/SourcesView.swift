@@ -4,6 +4,7 @@ import SwiftUI
 /// The Tanzil and font attributions are license requirements, so this screen must stay reachable.
 struct SourcesView: View {
     private let tanzilURL = URL(string: "https://tanzil.net")
+    private let geoNamesURL = URL(string: "https://www.geonames.org")
 
     @EnvironmentObject private var translations: TranslationStore
 
@@ -43,6 +44,22 @@ struct SourcesView: View {
 
                 card {
                     Text("Prayer times and Qibla: Adhan library by Batoul Apps, MIT License.")
+                }
+
+                card {
+                    Text("City names: GeoNames (geonames.org), CC BY 4.0. Shortened to name, country and position.")
+                    if let geoNamesURL {
+                        Link(destination: geoNamesURL) {
+                            HStack(spacing: 6) {
+                                Text(verbatim: "geonames.org")
+                                Image(systemName: "arrow.up.right")
+                                    .accessibilityHidden(true)
+                            }
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(MorePalette.gold)
+                        }
+                        .accessibilityIdentifier("sourcesGeoNamesLink")
+                    }
                 }
 
                 card {

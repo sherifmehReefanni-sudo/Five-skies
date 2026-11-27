@@ -1,30 +1,25 @@
-import CoreLocation
 import Foundation
 
-/// Turns the device coordinate into a city name for display, with Apple's geocoder.
-/// Only the coordinate goes to Apple, and only for a place not looked up before.
-/// Nothing else is sent anywhere. Names are cached in memory and in UserDefaults.
-/// The Makkah fallback needs no lookup: it returns nil and screens show `fallbackName`.
+/// Turns the device coordinate into a nearby city name for display, from the bundled GeoNames list.
+/// No network call: the lookup runs on the device, so the location still never leaves it.
+/// Returns nil (screens show "Your location") for the Makkah fallback, when no city is within 50 km,
+/// or when the list is not bundled. The list loads once, lazily, on this actor (never the main thread).
 actor PlaceNameProvider {
     static let shared = PlaceNameProvider()
 
     /// What screens show for the labelled Makkah fallback.
     static let fallbackName = "Makkah"
 
-    /// OFF until Reef decides. The privacy page and the location prompt promise the location
-    /// is never sent anywhere, and Apple's geocoder would receive the coordinate. With this off,
-    /// screens show "Your location" and no lookup is made.
-    static let lookupsEnabled = false
+    private static let maxCached = 20
 
-    private static let storageKey = "placeName.cache"
-    private static let maxStored = 20
+    private let loadIndex: @Sendable () -> CityIndex?
+    private var index: CityIndex?
+    private var didLoad = false
+    private var cache: [String: String] = [:]
 
-    private let defaults: UserDefaults
-    private var cache: [String: String]
-
-    init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        cache = (defaults.dictionary(forKey: PlaceNameProvider.storageKey) as? [String: String]) ?? [:]
+    /// `loadIndex` reads the bundled list by default; tests pass small in-memory lists.
+    init(loadIndex: @escaping @Sendable () -> CityIndex? = { CityIndex.load(contentsOf: CityIndex.bundledURL()) }) {
+        self.loadIndex = loadIndex
     }
 
     /// About one kilometre of rounding, so small moves reuse the cached name.
@@ -32,41 +27,25 @@ actor PlaceNameProvider {
         String(format: "%.2f,%.2f", coordinate.latitude, coordinate.longitude)
     }
 
-    /// The city for `place`, nil for the fallback or when the lookup fails (for example offline).
+    /// "City, CC" for `place`, or nil for the fallback, when nothing is within 50 km, or when the list is missing.
     func cityName(for place: Place) async -> String? {
         guard !place.isFallback else { return nil }
         let key = Self.cacheKey(for: place.coordinate)
         if let known = cache[key] {
             return known
         }
-        guard Self.lookupsEnabled else { return nil }
-        let location = CLLocation(latitude: place.coordinate.latitude, longitude: place.coordinate.longitude)
-        let geocoder = CLGeocoder()
-        guard let placemarks = try? await geocoder.reverseGeocodeLocation(location),
-              let name = Self.name(from: placemarks.first)
-        else {
+        if !didLoad {
+            didLoad = true
+            index = loadIndex()
+        }
+        guard let city = index?.nearest(to: place.coordinate) else {
             return nil
         }
-        remember(name, for: key)
-        return name
-    }
-
-    private func remember(_ name: String, for key: String) {
-        if cache.count >= Self.maxStored {
+        let name = city.displayName
+        if cache.count >= Self.maxCached {
             cache = [:]
         }
         cache[key] = name
-        defaults.set(cache, forKey: Self.storageKey)
-    }
-
-    private static func name(from placemark: CLPlacemark?) -> String? {
-        guard let placemark = placemark else { return nil }
-        let candidates = [placemark.locality, placemark.subAdministrativeArea, placemark.administrativeArea]
-        for candidate in candidates {
-            if let text = candidate?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
-                return text
-            }
-        }
-        return nil
+        return name
     }
 }
