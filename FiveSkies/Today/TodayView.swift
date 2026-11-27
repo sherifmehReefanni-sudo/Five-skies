@@ -122,6 +122,8 @@ private struct TodayScreen: View {
                 header(timeZone: timeZone)
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
+                GreetingLine(now: now, timeZone: timeZone)
+                    .padding(.top, 6)
                 NextPrayerView(
                     next: next,
                     now: now,
@@ -133,6 +135,8 @@ private struct TodayScreen: View {
                 .padding(.top, 12)
                 .padding(.horizontal, 16)
                 Spacer(minLength: 16)
+                DayCardsView(now: now, timeZone: timeZone)
+                    .riseIn(revealed: revealed, delay: 0.24)
                 TrackerChipsView(now: now)
                     .padding(.bottom, 10)
                     .riseIn(revealed: revealed, delay: 0.28)

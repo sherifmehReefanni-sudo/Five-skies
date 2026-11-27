@@ -5,28 +5,37 @@ final class WidgetGalleryUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    /// Every family on one scrolling page ("widgets"), then the Lock Screen row ("widgets-lock")
+    /// and the large widget ("widgets-large") each on a page of their own, so no shot depends
+    /// on how far a swipe scrolls.
     @MainActor
     func testScreenshotOfWidgetGallery() throws {
+        capture(page: nil, section: "widgetGalleryHome", name: "widgets")
+        capture(page: "lock", section: "widgetGalleryLock", name: "widgets-lock")
+        capture(page: "large", section: "widgetGalleryLarge", name: "widgets-large")
+    }
+
+    @MainActor
+    private func capture(page: String?, section: String, name: String) {
         let app = XCUIApplication()
-        app.launchArguments = ["-FSFixedPhase", "maghrib", "-FSWidgetGallery"]
+        var arguments = ["-FSFixedPhase", "maghrib", "-FSWidgetGallery"]
+        if let page = page {
+            arguments += ["-FSWidgetGalleryPage", page]
+        }
+        app.launchArguments = arguments
         app.launch()
         XCTAssertTrue(
             app.descendants(matching: .any)["widgetGallery"].waitForExistence(timeout: 20),
-            "Widget gallery did not appear"
+            "Widget gallery did not appear for \(name)"
+        )
+        XCTAssertTrue(
+            app.descendants(matching: .any)[section].waitForExistence(timeout: 5),
+            "Section \(section) did not appear for \(name)"
         )
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        attachment.name = "widgets"
+        attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
-
-        // The large widget sits below the fold on a phone screen, so it gets its own shot.
-        app.swipeUp()
-        app.swipeUp()
-        Thread.sleep(forTimeInterval: 0.5)
-        let large = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        large.name = "widgets-large"
-        large.lifetime = .keepAlways
-        add(large)
         app.terminate()
     }
 }

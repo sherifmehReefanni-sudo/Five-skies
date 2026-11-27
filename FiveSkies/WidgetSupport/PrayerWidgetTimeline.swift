@@ -1,9 +1,17 @@
 import Foundation
 
-/// One prayer and its start time, for the rows and columns of the widgets.
+/// One prayer, when it starts and when its window ends, for the rows of the widgets.
 struct PrayerWidgetRow: Equatable {
     let prayer: Prayer
     let time: Date
+    /// When the window ends: Fajr at sunrise, Dhuhr at Asr, Asr at Maghrib, Maghrib at Isha,
+    /// Isha at the next Fajr. Shown as "until".
+    let end: Date
+
+    /// True from the start of the prayer up to, but not including, the end of its window.
+    func contains(_ date: Date) -> Bool {
+        time <= date && date < end
+    }
 }
 
 /// Everything a widget shows at one moment. Plain data, so the same views can be drawn in the
@@ -15,7 +23,8 @@ struct PrayerWidgetEntry: Equatable {
     let timeZone: TimeZone
     /// True when the times are for the labelled Makkah fallback.
     let isFallback: Bool
-    /// The five prayers of the day on show. After Isha this is the next day.
+    /// The five prayers of the prayer day on show, which runs from Fajr to the next Fajr:
+    /// after midnight and before Fajr this is still the previous day, so Isha stays on show.
     let rows: [PrayerWidgetRow]
     let next: UpcomingPrayer
     /// When the prayer before `next` began, for the progress ring and bar.
@@ -24,6 +33,9 @@ struct PrayerWidgetEntry: Equatable {
     let phase: Prayer
     /// "Dhuhr", or "Morning" between sunrise and Dhuhr.
     let currentPeriodName: String
+    /// The prayer whose row window contains `date`, highlighted in the lists.
+    /// Nil between sunrise and Dhuhr, when no prayer's window is open.
+    let current: Prayer?
 
     /// How far `date` is from the previous prayer to the next, from 0 to 1.
     var progress: Double {
@@ -39,8 +51,13 @@ struct PrayerWidgetEntry: Equatable {
         calendar.timeZone = timeZone
         let start = calendar.startOfDay(for: date)
         let hours: [Prayer: Double] = [.fajr: 5, .dhuhr: 12, .asr: 15.5, .maghrib: 18, .isha: 19.5]
+        let endHours: [Prayer: Double] = [.fajr: 6.5, .dhuhr: 15.5, .asr: 18, .maghrib: 19.5, .isha: 29]
         let rows = Prayer.allCases.map { prayer in
-            PrayerWidgetRow(prayer: prayer, time: start.addingTimeInterval((hours[prayer] ?? 12) * 3600))
+            PrayerWidgetRow(
+                prayer: prayer,
+                time: start.addingTimeInterval((hours[prayer] ?? 12) * 3600),
+                end: start.addingTimeInterval((endHours[prayer] ?? 12) * 3600)
+            )
         }
         let upcoming = rows.first { $0.time > date }
         let next = upcoming.map { UpcomingPrayer(prayer: $0.prayer, time: $0.time) }
@@ -54,7 +71,8 @@ struct PrayerWidgetEntry: Equatable {
             next: next,
             previousStart: previous,
             phase: .dhuhr,
-            currentPeriodName: "Today"
+            currentPeriodName: "Today",
+            current: PrayerWidgetTimeline.currentPrayer(in: rows, at: date)
         )
     }
 }
@@ -64,9 +82,39 @@ enum PrayerWidgetTimeline {
     /// Spacing of the extra entries that move the progress ring and bar along.
     static let progressStep: TimeInterval = 15 * 60
 
+    /// The most entries one timeline holds. WidgetKit asks for a new timeline after the last.
+    static let maxEntries = 120
+
+    /// When the window of `prayer` ends on `day`, never before it starts.
+    static func windowEnd(of prayer: Prayer, in day: PrayerDay) -> Date {
+        let end: Date
+        switch prayer {
+        case .fajr: end = day.sunrise
+        case .dhuhr: end = day.asr
+        case .asr: end = day.maghrib
+        case .maghrib: end = day.isha
+        case .isha: end = day.tomorrowFajr
+        }
+        return max(day.time(of: prayer), end)
+    }
+
+    /// The five rows of `day`, each with its start and end.
+    static func rows(for day: PrayerDay) -> [PrayerWidgetRow] {
+        Prayer.allCases.map { prayer in
+            PrayerWidgetRow(prayer: prayer, time: day.time(of: prayer), end: windowEnd(of: prayer, in: day))
+        }
+    }
+
+    /// The prayer whose row contains `date`, or nil when none does.
+    static func currentPrayer(in rows: [PrayerWidgetRow], at date: Date) -> Prayer? {
+        rows.first { $0.contains(date) }?.prayer
+    }
+
     /// Entries from `now` through tomorrow's Isha: one at `now`, one at every prayer time,
     /// at sunrise and at the start of the sunset sky (so the sky phase is right), and one at
-    /// the next midnight in the place's time zone. Dates are strictly increasing.
+    /// the next midnight in the place's time zone. Dates are strictly increasing. Every moment the
+    /// highlighted row changes (each prayer time and sunrise) has its own entry, so the highlight
+    /// moves on time, and there are never more than `maxEntries`.
     ///
     /// With `progressStep` set, entries are also added every step, and the timeline instead
     /// ends at the second prayer after `now`, so it stays short and is rebuilt often.
@@ -121,7 +169,8 @@ enum PrayerWidgetTimeline {
             }
         }
 
-        return Array(Set(dates.filter { $0 >= now && $0 <= end })).sorted()
+        let sorted = Array(Set(dates.filter { $0 >= now && $0 <= end })).sorted()
+        return Array(sorted.prefix(maxEntries))
     }
 
     /// The entry in effect at `date`, or nil when prayer times cannot be computed there.
@@ -135,19 +184,18 @@ enum PrayerWidgetTimeline {
         let service = base.applying(method: config.calculationMethod, asrRule: config.asrRule)
         guard let today = service.prayerDay(for: place, on: date) else { return nil }
 
-        var shown = today
-        if date >= today.isha,
-           let nextDate = calendar.date(byAdding: .day, value: 1, to: date),
-           let tomorrow = service.prayerDay(for: place, on: nextDate) {
-            shown = tomorrow
+        // Before Fajr the night still belongs to the previous day's Isha.
+        var yesterday: PrayerDay?
+        if date < today.fajr, let yesterdayDate = calendar.date(byAdding: .day, value: -1, to: date) {
+            yesterday = service.prayerDay(for: place, on: yesterdayDate)
         }
+        let shownRows = rows(for: yesterday ?? today)
 
         let started = Prayer.allCases.map { today.time(of: $0) }.filter { $0 <= date }
         let previous: Date
         if let latest = started.max() {
             previous = latest
-        } else if let yesterdayDate = calendar.date(byAdding: .day, value: -1, to: date),
-                  let yesterday = service.prayerDay(for: place, on: yesterdayDate) {
+        } else if let yesterday = yesterday {
             previous = yesterday.isha
         } else {
             previous = calendar.startOfDay(for: date)
@@ -157,11 +205,12 @@ enum PrayerWidgetTimeline {
             date: date,
             timeZone: place.timeZone,
             isFallback: place.isFallback,
-            rows: Prayer.allCases.map { PrayerWidgetRow(prayer: $0, time: shown.time(of: $0)) },
+            rows: shownRows,
             next: today.nextPrayer(after: date),
             previousStart: previous,
             phase: today.skyPhase(at: date),
-            currentPeriodName: today.currentPeriodName(at: date)
+            currentPeriodName: today.currentPeriodName(at: date),
+            current: currentPrayer(in: shownRows, at: date)
         )
     }
 

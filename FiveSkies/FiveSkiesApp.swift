@@ -11,6 +11,8 @@ struct FiveSkiesApp: App {
     @StateObject private var translations = TranslationStore.live()
     /// Decides when the signature shooting star plays on Today.
     @StateObject private var signatureStar = SignatureStarController()
+    /// True until the first-run flow closes, so Today does not ask for location behind it.
+    @State private var firstRunPending = OnboardingGate.live().shouldShow
 
     private let launch: LaunchOptions
     private let service: PrayerTimesService
@@ -43,8 +45,9 @@ struct FiveSkiesApp: App {
                 TodayView(
                     location: location,
                     service: service,
-                    requestsLocation: launch.requestsLocation
+                    requestsLocation: launch.requestsLocation && !firstRunPending
                 )
+                .id(firstRunPending)
                 .tabArrival()
                 .legibleTabBar()
                 .tabItem { Label("Today", systemImage: "sun.max") }
@@ -69,6 +72,8 @@ struct FiveSkiesApp: App {
                     .legibleTabBar()
                     .tabItem { Label("More", systemImage: "ellipsis.circle") }
             }
+            .firstRunFlow(location: location) { firstRunPending = false }
+            .whatsNewSheet()
             .modifier(WidgetGalleryOverride(
                 isActive: launch.fixedPhase != nil && WidgetGalleryLaunch.isRequested()
             ))

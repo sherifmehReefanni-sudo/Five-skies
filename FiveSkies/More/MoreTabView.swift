@@ -118,9 +118,11 @@ struct MoreTabView: View {
 /// Every tile on the More screen, in display order.
 enum MoreTool: String, CaseIterable, Identifiable {
     case tracker
+    case goals
     case tasbih
     case zakat
     case hijriCalendar
+    case timetable
     case hadith
     case duas
     case ramadan
@@ -130,6 +132,7 @@ enum MoreTool: String, CaseIterable, Identifiable {
     case memorize
     case stories
     case themes
+    case preferences
     case sources
 
     var id: String { rawValue }
@@ -137,6 +140,9 @@ enum MoreTool: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .tracker: return "Prayer tracker"
+        case .goals: return "Goals"
+        case .timetable: return "Timetable"
+        case .preferences: return "Settings and backup"
         case .tasbih: return "Tasbih"
         case .zakat: return "Zakat"
         case .hijriCalendar: return "Hijri calendar"
@@ -156,6 +162,9 @@ enum MoreTool: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .tracker: return "checkmark.circle"
+        case .goals: return "flag.checkered"
+        case .timetable: return "tablecells"
+        case .preferences: return "gearshape.2"
         case .tasbih: return "hand.tap"
         case .zakat: return "banknote"
         case .hijriCalendar: return "calendar"
@@ -174,20 +183,21 @@ enum MoreTool: String, CaseIterable, Identifiable {
 
     var tint: Color {
         switch self {
-        case .tracker, .zakat: return Color(red: 90 / 255, green: 200 / 255, blue: 120 / 255).opacity(0.45)
+        case .tracker, .zakat, .goals: return Color(red: 90 / 255, green: 200 / 255, blue: 120 / 255).opacity(0.45)
         case .tasbih, .stories: return Color(red: 90 / 255, green: 150 / 255, blue: 240 / 255).opacity(0.45)
-        case .hijriCalendar, .halal: return Color(red: 240 / 255, green: 150 / 255, blue: 80 / 255).opacity(0.45)
+        case .hijriCalendar, .halal, .timetable: return Color(red: 240 / 255, green: 150 / 255, blue: 80 / 255).opacity(0.45)
         case .hadith, .mosques: return Color(red: 64 / 255, green: 200 / 255, blue: 180 / 255).opacity(0.4)
         case .duas, .memorize: return Color(red: 160 / 255, green: 120 / 255, blue: 240 / 255).opacity(0.45)
         case .ramadan: return Color(red: 240 / 255, green: 110 / 255, blue: 150 / 255).opacity(0.45)
         case .names, .themes: return Color(red: 240 / 255, green: 200 / 255, blue: 90 / 255).opacity(0.45)
-        case .sources: return Color.white.opacity(0.22)
+        case .sources, .preferences: return Color.white.opacity(0.22)
         }
     }
 
     var isAvailable: Bool {
         switch self {
-        case .tracker, .tasbih, .zakat, .hijriCalendar, .ramadan, .mosques, .halal, .memorize, .themes, .sources:
+        case .tracker, .goals, .tasbih, .zakat, .hijriCalendar, .timetable, .ramadan, .mosques, .halal, .memorize,
+             .themes, .preferences, .sources:
             return true
         case .hadith, .duas, .names, .stories:
             return false
@@ -198,6 +208,9 @@ enum MoreTool: String, CaseIterable, Identifiable {
     var destination: some View {
         switch self {
         case .tracker: TrackerView()
+        case .goals: GoalsView()
+        case .timetable: TimetableView()
+        case .preferences: AppPreferencesView()
         case .tasbih: TasbihView()
         case .zakat: ZakatView()
         case .hijriCalendar: HijriCalendarView()

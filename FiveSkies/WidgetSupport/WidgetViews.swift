@@ -4,7 +4,7 @@ import SwiftUI
 // Nothing here uses WidgetKit, so the app's debug widget gallery can draw the same views.
 // The extension wraps them and supplies the container background separately.
 
-/// How the countdown is drawn. Widgets use `.live`, which the system keeps current without new
+/// How the countdown is drawn. Widgets use `.live`, a system timer that ticks without new
 /// entries. The gallery uses `.frozen`, worked out from the entry's own date, so screenshots are stable.
 enum WidgetCountdownMode {
     case live
@@ -40,6 +40,16 @@ enum PrayerWidgetText {
         case .maghrib: return "Mgrb"
         case .isha: return "Isha"
         }
+    }
+
+    /// "5:34" or "17:34" with no AM or PM, for the tight lock screen list.
+    static func compactTime(_ date: Date, timeZone: TimeZone) -> String {
+        TileTimeFormat(timeZone: timeZone).time(date)
+    }
+
+    /// "until 6:52 AM", the end of a prayer's window.
+    static func until(_ end: Date, timeZone: TimeZone) -> String {
+        "until \(time(end, timeZone: timeZone))"
     }
 
     /// "Asr at 3:15 PM", for the inline lock screen widget.
@@ -78,10 +88,29 @@ struct WidgetCountdownText: View {
     var body: some View {
         switch mode {
         case .live:
-            Text("in ") + Text(entry.next.time, style: .relative)
+            (Text("in ") + Text(timerInterval: liveInterval, countsDown: true))
+                .monospacedDigit()
+                .multilineTextAlignment(.center)
         case .frozen:
             Text(PrayerWidgetText.countdown(from: entry.date, to: entry.next.time))
         }
+    }
+
+    /// From the entry's date to the next prayer. The lower bound never passes the upper one.
+    private var liveInterval: ClosedRange<Date> {
+        min(entry.date, entry.next.time)...entry.next.time
+    }
+}
+
+/// Marks for one prayer in a list: the current one is filled gold, the next one is outlined.
+private struct PrayerRowMarks {
+    let isCurrent: Bool
+    let isNext: Bool
+
+    init(row: PrayerWidgetRow, entry: PrayerWidgetEntry) {
+        isCurrent = row.prayer == entry.current
+        // Compared by time, so tomorrow's Fajr does not mark this morning's row.
+        isNext = !isCurrent && row.time == entry.next.time
     }
 }
 
@@ -200,7 +229,8 @@ struct SmallPrayerWidgetView: View {
     }
 }
 
-/// "Today's prayers" (systemMedium): the next prayer on its sky, then five compact columns.
+/// "Today's prayers" (systemMedium): the next prayer on its sky, then five rows with each
+/// prayer's start and "until" end, the current one highlighted.
 struct MediumPrayerWidgetView: View {
     let entry: PrayerWidgetEntry
     var countdown: WidgetCountdownMode = .live
@@ -223,9 +253,9 @@ struct MediumPrayerWidgetView: View {
             .frame(maxHeight: .infinity)
             .clipped()
 
-            HStack(spacing: 3) {
+            VStack(spacing: 3) {
                 ForEach(entry.rows, id: \.prayer) { row in
-                    column(for: row)
+                    rowView(for: row)
                 }
             }
             .padding(8)
@@ -238,34 +268,39 @@ struct MediumPrayerWidgetView: View {
         }
     }
 
-    private func column(for row: PrayerWidgetRow) -> some View {
-        let isNext = row.prayer == entry.next.prayer
-        let format = TileTimeFormat(timeZone: entry.timeZone)
-        return VStack(spacing: 4) {
+    private func rowView(for row: PrayerWidgetRow) -> some View {
+        let marks = PrayerRowMarks(row: row, entry: entry)
+        return HStack(spacing: 6) {
             Text(row.prayer.displayName)
-                .font(.system(size: 10, weight: .bold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text(format.time(row.time))
-                .font(.system(size: 13, weight: .heavy))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            if let period = format.period(row.time) {
-                Text(period)
-                    .font(.system(size: 9, weight: .bold))
-                    .opacity(0.75)
+                .font(.system(size: 12, weight: .bold))
+            Spacer(minLength: 2)
+            Text(PrayerWidgetText.time(row.time, timeZone: entry.timeZone))
+                .font(.system(size: 12, weight: .heavy))
+            Text(PrayerWidgetText.until(row.end, timeZone: entry.timeZone))
+                .font(.system(size: 10, weight: .semibold))
+                .opacity(0.75)
+                .frame(width: 72, alignment: .trailing)
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .foregroundStyle(marks.isCurrent ? PrayerWidgetPalette.ink : Color.white)
+        .background {
+            if marks.isCurrent {
+                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(PrayerWidgetPalette.gold)
+            } else {
+                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.08))
             }
         }
-        .foregroundStyle(isNext ? PrayerWidgetPalette.ink : Color.white)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background {
-            if isNext {
-                RoundedRectangle(cornerRadius: 14, style: .continuous).fill(PrayerWidgetPalette.gold)
-            } else {
-                RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.08))
+        .overlay {
+            if marks.isNext {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.45), lineWidth: 1)
             }
         }
         .accessibilityElement(children: .combine)
+        .accessibilityValue(marks.isCurrent ? Text("Now") : Text(""))
     }
 }
 
@@ -342,23 +377,36 @@ struct LargePrayerWidgetView: View {
     }
 
     private func rowView(for row: PrayerWidgetRow) -> some View {
-        let isNext = row.prayer == entry.next.prayer
-        return HStack {
+        let marks = PrayerRowMarks(row: row, entry: entry)
+        return HStack(spacing: 8) {
             Text(row.prayer.displayName)
                 .font(.system(size: 15, weight: .bold))
-            Spacer()
+            Spacer(minLength: 4)
             Text(PrayerWidgetText.time(row.time, timeZone: entry.timeZone))
                 .font(.system(size: 15, weight: .heavy))
+            Text(PrayerWidgetText.until(row.end, timeZone: entry.timeZone))
+                .font(.system(size: 12, weight: .semibold))
+                .opacity(0.75)
+                .frame(width: 96, alignment: .trailing)
         }
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
         .padding(.horizontal, 12)
         .frame(height: 40)
-        .foregroundStyle(isNext ? PrayerWidgetPalette.ink : Color.white)
+        .foregroundStyle(marks.isCurrent ? PrayerWidgetPalette.ink : Color.white)
         .background {
-            if isNext {
+            if marks.isCurrent {
                 RoundedRectangle(cornerRadius: 14, style: .continuous).fill(PrayerWidgetPalette.gold)
             }
         }
+        .overlay {
+            if marks.isNext {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.4), lineWidth: 1)
+            }
+        }
         .accessibilityElement(children: .combine)
+        .accessibilityValue(marks.isCurrent ? Text("Now") : Text(""))
     }
 }
 
@@ -379,7 +427,8 @@ private struct ProgressBar: View {
     }
 }
 
-/// Lock screen circle: the next prayer's short name in a ring that fills from the previous prayer.
+/// Lock screen circle: the next prayer's short name in a ring that fills through the current
+/// window, from the previous prayer toward the next.
 /// Colors are left to the system so vibrant rendering works.
 struct CircularPrayerWidgetView: View {
     let entry: PrayerWidgetEntry
@@ -418,6 +467,51 @@ struct RectangularPrayerWidgetView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Lock screen rectangle, second style: the five times in a row, the current one marked.
+/// Colors are left to the system so vibrant rendering works.
+struct TodayTimesRectangularView: View {
+    let entry: PrayerWidgetEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("PRAYER TIMES")
+                .font(.system(size: 11, weight: .heavy))
+                .tracking(1.5)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            HStack(spacing: 2) {
+                ForEach(entry.rows, id: \.prayer) { row in
+                    column(for: row)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func column(for row: PrayerWidgetRow) -> some View {
+        let isCurrent = row.prayer == entry.current
+        return VStack(spacing: 0) {
+            Text(PrayerWidgetText.abbreviation(row.prayer))
+                .font(.system(size: 10, weight: .bold))
+            Text(PrayerWidgetText.compactTime(row.time, timeZone: entry.timeZone))
+                .font(.system(size: 13, weight: .heavy))
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
+        .foregroundStyle(isCurrent ? HierarchicalShapeStyle.primary : HierarchicalShapeStyle.secondary)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 3)
+        .background {
+            if isCurrent {
+                RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.white.opacity(0.25))
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(isCurrent ? Text("Now") : Text(""))
     }
 }
 

@@ -8,10 +8,12 @@ struct FiveSkiesWidgetBundle: WidgetBundle {
         TodayPrayersWidget()
         PrayerProgressWidget()
         LockScreenPrayerWidget()
+        TodayTimesLockWidget()
     }
 }
 
-/// "Next prayer" on its sky (systemSmall).
+/// "Next prayer" on its sky (systemSmall). iOS 17 also shows this size in StandBy, where the
+/// system may drop the container background; the text stays legible on black.
 struct NextPrayerWidget: Widget {
     let kind = "NextPrayerWidget"
 
@@ -41,7 +43,7 @@ struct TodayPrayersWidget: Widget {
                 }
         }
         .configurationDisplayName("Today's prayers")
-        .description("The next prayer and all five times for today.")
+        .description("The next prayer and when each prayer starts and ends today.")
         .supportedFamilies([.systemMedium])
         .contentMarginsDisabled()
     }
@@ -62,13 +64,14 @@ struct PrayerProgressWidget: Widget {
                 }
         }
         .configurationDisplayName("Prayers and progress")
-        .description("All five times and how far along the day is toward the next prayer.")
+        .description("Each prayer's start and end, and how far along you are toward the next one.")
         .supportedFamilies([.systemLarge])
         .contentMarginsDisabled()
     }
 }
 
-/// Lock screen circle, rectangle and inline line.
+/// Lock screen circle (progress toward the next prayer), rectangle (next prayer, time and a
+/// live countdown) and inline line.
 struct LockScreenPrayerWidget: Widget {
     let kind = "LockScreenPrayerWidget"
 
@@ -80,8 +83,26 @@ struct LockScreenPrayerWidget: Widget {
             LockScreenPrayerEntryView(entry: entry)
         }
         .configurationDisplayName("Next prayer")
-        .description("The next prayer on your lock screen.")
+        .description("The next prayer and a live countdown on your Lock Screen.")
         .supportedFamilies([.accessoryCircular, .accessoryRectangular, .accessoryInline])
+    }
+}
+
+/// Lock screen rectangle listing all five times, the current one marked. Entries at each
+/// prayer time and at sunrise move the mark on time.
+struct TodayTimesLockWidget: Widget {
+    let kind = "TodayTimesLockWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: PrayerTimelineProvider()) { entry in
+            TodayTimesRectangularView(entry: entry)
+                .containerBackground(for: .widget) {
+                    Color.clear
+                }
+        }
+        .configurationDisplayName("Today's times")
+        .description("All five prayer times on your Lock Screen, the current one marked.")
+        .supportedFamilies([.accessoryRectangular])
     }
 }
 
