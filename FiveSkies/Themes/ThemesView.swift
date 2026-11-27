@@ -45,6 +45,10 @@ struct ThemesView: View {
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .moreGlass(.dark, cornerRadius: 24)
+                    .background(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .fill(MorePalette.ink.opacity(0.92))
+                    )
                     .padding(.top, 8)
                 }
                 .foregroundStyle(.white)
