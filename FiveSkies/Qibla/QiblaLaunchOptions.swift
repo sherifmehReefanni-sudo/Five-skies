@@ -3,12 +3,15 @@ import Foundation
 /// Testing hooks read only by the Qibla tab.
 /// `-FSFixedHeading <degrees>` reports that device heading and never starts compass updates.
 /// `-FSFixedCoordinate <lat>,<lon>` uses that coordinate for the Qibla tab and skips location.
+/// `-FSQiblaLocating` holds the tab in its "finding your location" state, for screenshots.
 struct QiblaLaunchOptions {
     static let fixedHeadingArgument = "-FSFixedHeading"
     static let fixedCoordinateArgument = "-FSFixedCoordinate"
+    static let locatingArgument = "-FSQiblaLocating"
 
     let fixedHeading: Double?
     let fixedCoordinate: Coordinate?
+    let forcesLocating: Bool
 
     init(processInfo: ProcessInfo = .processInfo) {
         let arguments = processInfo.arguments
@@ -16,6 +19,7 @@ struct QiblaLaunchOptions {
             .flatMap(Self.parseHeading)
         fixedCoordinate = Self.value(after: Self.fixedCoordinateArgument, in: arguments)
             .flatMap(Self.parseCoordinate)
+        forcesLocating = arguments.contains(Self.locatingArgument)
     }
 
     /// A finite heading in degrees, normalised to 0..<360.

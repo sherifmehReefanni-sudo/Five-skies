@@ -87,7 +87,7 @@ struct TrackerView: View {
             }
             HStack(spacing: 5) {
                 Circle().strokeBorder(Color.white.opacity(0.6), lineWidth: 2).frame(width: 10, height: 10)
-                Text("Missed")
+                Text("Not marked")
             }
         }
         .font(.caption.weight(.semibold))

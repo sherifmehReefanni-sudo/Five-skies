@@ -59,10 +59,44 @@ private struct MoreGlassModifier: ViewModifier {
         return content
             .background(
                 shape.fill(tone == .dark ? MorePalette.ink.opacity(0.55) : Color.white.opacity(0.1))
+                    .shadow(color: Color(hex: 0x05040F, opacity: 0.3), radius: 12, y: 6)
             )
             .overlay(
-                shape.strokeBorder(Color.white.opacity(tone == .dark ? 0.3 : 0.22), lineWidth: 1)
+                // Lit along the top edge and fading down, like light catching a pane of glass.
+                shape.strokeBorder(
+                    LinearGradient(
+                        colors: tone == .dark
+                            ? [Color.white.opacity(0.42), Color.white.opacity(0.16)]
+                            : [Color.white.opacity(0.4), Color.white.opacity(0.1)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
             )
+    }
+}
+
+/// A still scatter of faint stars over the top of a More sky, from a stable hash.
+private struct MoreStarDust: View {
+    private static let count = 70
+
+    var body: some View {
+        Canvas { context, size in
+            for index in 0..<Self.count {
+                let x = MotionWave.hash(index, salt: 31)
+                let y = MotionWave.hash(index, salt: 32) * 0.55
+                let fade = 1 - y / 0.55
+                let radius = CGFloat(0.5 + 0.9 * MotionWave.hash(index, salt: 33))
+                let center = CGPoint(x: CGFloat(x) * size.width, y: CGFloat(y) * size.height)
+                context.fill(
+                    Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)),
+                    with: .color(.white.opacity(0.55 * fade))
+                )
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -74,7 +108,13 @@ extension View {
 
     /// Paints a More night sky behind the view, edge to edge.
     func moreSkyBackground(_ sky: MoreSky) -> some View {
-        background(sky.gradient.ignoresSafeArea())
+        background(
+            ZStack {
+                sky.gradient
+                MoreStarDust()
+            }
+            .ignoresSafeArea()
+        )
     }
 }
 

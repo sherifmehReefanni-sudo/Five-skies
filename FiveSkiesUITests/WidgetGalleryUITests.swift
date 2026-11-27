@@ -18,6 +18,15 @@ final class WidgetGalleryUITests: XCTestCase {
         attachment.name = "widgets"
         attachment.lifetime = .keepAlways
         add(attachment)
+
+        // The large widget sits below the fold on a phone screen, so it gets its own shot.
+        app.swipeUp()
+        app.swipeUp()
+        Thread.sleep(forTimeInterval: 0.5)
+        let large = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        large.name = "widgets-large"
+        large.lifetime = .keepAlways
+        add(large)
         app.terminate()
     }
 }

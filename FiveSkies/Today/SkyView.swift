@@ -43,6 +43,41 @@ struct SkyView: View {
     }
 }
 
+/// A soft darkening at the top of the bright day skies so white text keeps its contrast
+/// (at least 4.5 to 1 for small text where Today and Qibla place it). Night skies need none.
+/// It is kept out of SkyView itself so wallpapers and share images keep their full colour.
+struct SkyLegibilityScrim: View {
+    let phase: Prayer
+
+    @AppStorage(SkyTheme.storageKey) private var storedTheme: SkyTheme = SkyTheme.defaultTheme
+
+    /// Strength at the very top; it fades to nothing at half the screen height.
+    static func strength(for phase: Prayer) -> Double {
+        switch phase {
+        case .dhuhr: return 0.34
+        case .asr: return 0.22
+        case .fajr, .maghrib, .isha: return 0
+        }
+    }
+
+    var body: some View {
+        let theme = SkyTheme.effective(stored: storedTheme, arguments: SkyTheme.processArguments)
+        let strength = SkyStyle.style(forTheme: theme) == nil ? Self.strength(for: phase) : 0
+        LinearGradient(
+            stops: [
+                Gradient.Stop(color: Color(hex: 0x061230, opacity: strength), location: 0),
+                Gradient.Stop(color: Color(hex: 0x061230, opacity: 0), location: 0.5)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .ignoresSafeArea()
+        .animation(.easeInOut(duration: 2.5), value: strength)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 /// Where the top of the skyline sits, as a fraction of the screen height.
 private let skylineTopFraction: CGFloat = 0.52
 
@@ -81,6 +116,9 @@ private struct SkyScene: View {
                     startPoint: .top,
                     endPoint: .bottom
                 )
+                if GalaxyBand.isShown(for: style.starOpacities) {
+                    GalaxyBand(skylineTop: skylineTop)
+                }
                 TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !animates)) { context in
                     // nil means rest: every element is drawn in its still state.
                     let time: Double? = animates ? context.date.timeIntervalSinceReferenceDate : nil
@@ -134,10 +172,20 @@ private struct StarField: View {
         ]
     ]
 
+    /// Faint dust between the main stars, placed from a stable hash so it never moves.
+    private static let dustCount = 90
+
+    /// How far down the sky the dust reaches, as a share of the skyline top: all the way on
+    /// the darkest night, less as the horizon brightens.
+    private var dustReach: Double {
+        Double(opacities.filter { $0 > 0 }.count) / 3
+    }
+
     var body: some View {
         Canvas { context, size in
             let scaleX = size.width / 245
             let scaleY = skylineTop / 340
+            drawDust(in: &context, size: size)
             var starIndex = 0
             for (index, layer) in Self.layers.enumerated() where index < opacities.count {
                 let layerOpacity = opacities[index]
@@ -146,17 +194,66 @@ private struct StarField: View {
                     guard layerOpacity > 0 else { continue }
                     let opacity = layerOpacity * Self.twinkle(star: starIndex, time: time)
                     let radius = star.r * scaleX
-                    let rect = CGRect(
-                        x: star.x * scaleX - radius,
-                        y: star.y * scaleY - radius,
-                        width: radius * 2,
-                        height: radius * 2
-                    )
-                    context.fill(Path(ellipseIn: rect), with: .color(.white.opacity(opacity)))
+                    let center = CGPoint(x: star.x * scaleX, y: star.y * scaleY)
+                    let tint = Self.tint(for: starIndex)
+                    if star.r >= 1 {
+                        // A soft bloom around the brighter stars.
+                        let bloom = radius * 4
+                        context.fill(
+                            Path(ellipseIn: CGRect(x: center.x - bloom, y: center.y - bloom, width: bloom * 2, height: bloom * 2)),
+                            with: .radialGradient(
+                                Gradient(colors: [tint.opacity(0.28 * opacity), tint.opacity(0)]),
+                                center: center,
+                                startRadius: 0,
+                                endRadius: bloom
+                            )
+                        )
+                    }
+                    if star.r >= 1.2 && layerOpacity >= 0.9 {
+                        // A fine four point glint on the brightest stars of a dark sky.
+                        let reach = radius * 4.5
+                        var glint = Path()
+                        glint.move(to: CGPoint(x: center.x - reach, y: center.y))
+                        glint.addLine(to: CGPoint(x: center.x + reach, y: center.y))
+                        glint.move(to: CGPoint(x: center.x, y: center.y - reach))
+                        glint.addLine(to: CGPoint(x: center.x, y: center.y + reach))
+                        context.stroke(glint, with: .color(tint.opacity(0.35 * opacity)), lineWidth: 0.6)
+                    }
+                    let rect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+                    context.fill(Path(ellipseIn: rect), with: .color(tint.opacity(opacity)))
                 }
             }
         }
     }
+
+    /// Most stars are white; a few lean warm and a few lean blue, as real stars do.
+    static func tint(for index: Int) -> Color {
+        let pick = MotionWave.hash(index, salt: 7)
+        if pick < 0.18 { return Color(hex: 0xFFE9C4) }
+        if pick > 0.84 { return Color(hex: 0xD3E2FF) }
+        return .white
+    }
+
+    private func drawDust(in context: inout GraphicsContext, size: CGSize) {
+        let reach = dustReach
+        guard reach > 0 else { return }
+        let strength = opacities.max() ?? 0
+        for index in 0..<Self.dustCount {
+            let x = MotionWave.hash(index, salt: 21)
+            let y = MotionWave.hash(index, salt: 22)
+            guard y < reach else { continue }
+            // Thins out toward the bottom of its reach.
+            let fade = 1 - y / reach
+            let flicker = time == nil ? 1 : (0.6 + 0.4 * Self.twinkle(star: 100 + index, time: time))
+            let radius = CGFloat(0.35 + 0.45 * MotionWave.hash(index, salt: 23)) * size.width / 245
+            let center = CGPoint(x: CGFloat(x) * size.width, y: CGFloat(y) * skylineTop)
+            context.fill(
+                Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)),
+                with: .color(.white.opacity(0.5 * strength * fade * flicker))
+            )
+        }
+    }
+
 
     /// A star's brightness factor, easing between 0.35 and 1. Each star has its own stable
     /// phase and a period of 2.5 to 6 seconds, both derived from its index.
@@ -165,6 +262,46 @@ private struct StarField: View {
         let period = 2.5 + 3.5 * MotionWave.hash(index, salt: 1)
         let wave = MotionWave.breath(time, period: period, offset: MotionWave.hash(index, salt: 2))
         return 1 - 0.65 * wave
+    }
+}
+
+/// A faint band of the galaxy across a deep night sky, drawn once and never animated.
+private struct GalaxyBand: View {
+    let skylineTop: CGFloat
+
+    /// A deep night with every star layer lit shows the band.
+    static func isShown(for opacities: [Double]) -> Bool {
+        opacities.count >= 3 && opacities.allSatisfy { $0 >= 0.9 }
+    }
+
+    var body: some View {
+        Canvas { context, size in
+            Self.draw(in: &context, size: size, skylineTop: skylineTop)
+        }
+        .allowsHitTesting(false)
+    }
+
+    /// A very faint diagonal wash, brightest along its middle.
+    private static func draw(in context: inout GraphicsContext, size: CGSize, skylineTop: CGFloat) {
+        var band = context
+        band.translateBy(x: size.width * 0.5, y: skylineTop * 0.42)
+        band.rotate(by: .degrees(-28))
+        let width = size.width * 1.9
+        let height = skylineTop * 0.34
+        let rect = CGRect(x: -width / 2, y: -height / 2, width: width, height: height)
+        band.addFilter(.blur(radius: 18))
+        band.fill(
+            Path(ellipseIn: rect),
+            with: .linearGradient(
+                Gradient(stops: [
+                    Gradient.Stop(color: Color(hex: 0xB9C4FF, opacity: 0), location: 0),
+                    Gradient.Stop(color: Color(hex: 0xB9C4FF, opacity: 0.09), location: 0.5),
+                    Gradient.Stop(color: Color(hex: 0xB9C4FF, opacity: 0), location: 1)
+                ]),
+                startPoint: CGPoint(x: 0, y: -height / 2),
+                endPoint: CGPoint(x: 0, y: height / 2)
+            )
+        )
     }
 }
 
@@ -325,6 +462,12 @@ private struct CelestialView: View {
         let bodyDiameter = size.width * celestial.bodySize
         let position = CGPoint(x: size.width * celestial.center.x, y: size.height * celestial.center.y)
         ZStack {
+            // A wide soft bloom behind the halo, so the light seems to spill into the sky.
+            Circle()
+                .fill(bloomColor)
+                .frame(width: bodyDiameter * 2.4, height: bodyDiameter * 2.4)
+                .blur(radius: bodyDiameter * 0.5)
+                .opacity((isSun ? 0.55 : 0.4) * (1 - 0.25 * breath))
             Circle()
                 .fill(
                     RadialGradient(
@@ -340,6 +483,14 @@ private struct CelestialView: View {
             bodyShape(diameter: bodyDiameter)
         }
         .position(position)
+    }
+
+    private var bloomColor: Color {
+        switch celestial.body {
+        case let .sun(_, glow, _): return glow
+        case let .crescent(color): return color.opacity(0.6)
+        case let .fullMoon(_, glow, _): return glow
+        }
     }
 
     @ViewBuilder
@@ -379,8 +530,34 @@ private struct CelestialView: View {
                         endRadius: diameter * 0.85
                     )
                 )
+                .overlay(MoonSurface())
+                .clipShape(Circle())
                 .frame(width: diameter, height: diameter)
                 .shadow(color: glow, radius: glowRadius)
+        }
+    }
+}
+
+/// A few faint darker patches on the full moon, laid out as fractions of its width.
+private struct MoonSurface: View {
+    private static let patches: [(x: CGFloat, y: CGFloat, r: CGFloat, opacity: Double)] = [
+        (0.36, 0.34, 0.16, 0.10), (0.58, 0.30, 0.11, 0.08), (0.62, 0.56, 0.18, 0.09),
+        (0.38, 0.64, 0.10, 0.07), (0.50, 0.46, 0.07, 0.06)
+    ]
+
+    var body: some View {
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            ZStack(alignment: .topLeading) {
+                ForEach(Self.patches.indices, id: \.self) { index in
+                    let patch = Self.patches[index]
+                    Circle()
+                        .fill(Color(hex: 0x8C8670, opacity: patch.opacity))
+                        .frame(width: width * patch.r * 2, height: width * patch.r * 2)
+                        .blur(radius: width * 0.02)
+                        .position(x: width * patch.x, y: width * patch.y)
+                }
+            }
         }
     }
 }

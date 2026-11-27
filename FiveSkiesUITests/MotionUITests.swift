@@ -31,4 +31,27 @@ final class MotionUITests: XCTestCase {
             app.terminate()
         }
     }
+
+    /// The signature star plays shortly after the app opens. Frames are taken back to back
+    /// so at least a few land inside its 1.4 second crossing.
+    @MainActor
+    func testSignatureStarFramesOnOpening() throws {
+        for phase in ["isha", "dhuhr"] {
+            let app = XCUIApplication()
+            app.launchArguments = ["-FSFixedPhase", phase, "-FSAnimate"]
+            app.launch()
+            XCTAssertTrue(
+                app.staticTexts["nextPrayerName"].waitForExistence(timeout: 20),
+                "Today screen did not appear for \(phase)"
+            )
+            for frame in 1...10 {
+                let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+                attachment.name = "star-\(phase)-\(frame)"
+                attachment.lifetime = .keepAlways
+                add(attachment)
+                Thread.sleep(forTimeInterval: 0.12)
+            }
+            app.terminate()
+        }
+    }
 }

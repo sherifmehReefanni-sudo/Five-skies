@@ -25,6 +25,23 @@ final class QiblaUITests: XCTestCase {
     }
 
     @MainActor
+    func testLocatingStateShowsBeforeAnyDirection() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-FSFixedPhase", "dhuhr", "-FSQiblaLocating"]
+        app.launch()
+        let tab = app.tabBars.buttons["Qibla"]
+        XCTAssertTrue(tab.waitForExistence(timeout: 20), "Qibla tab button did not appear")
+        tab.tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["qiblaLocating"].waitForExistence(timeout: 20),
+            "Locating state did not appear"
+        )
+        XCTAssertFalse(app.staticTexts["qiblaBearing"].exists, "No direction is shown while locating")
+        attachScreenshot(named: "qibla-locating")
+        app.terminate()
+    }
+
+    @MainActor
     private func launchQibla(heading: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [

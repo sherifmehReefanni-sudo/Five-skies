@@ -9,6 +9,8 @@ struct FiveSkiesApp: App {
     @StateObject private var quran = QuranStore()
     /// Quran Foundation translations, kept offline only through Content Sync.
     @StateObject private var translations = TranslationStore.live()
+    /// Decides when the signature shooting star plays on Today.
+    @StateObject private var signatureStar = SignatureStarController()
 
     private let launch: LaunchOptions
     private let service: PrayerTimesService
@@ -43,22 +45,27 @@ struct FiveSkiesApp: App {
                     service: service,
                     requestsLocation: launch.requestsLocation
                 )
+                .tabArrival()
                 .legibleTabBar()
                 .tabItem { Label("Today", systemImage: "sun.max") }
 
                 QuranTabView()
+                    .tabArrival()
                     .legibleTabBar()
                     .tabItem { Label("Quran", systemImage: "book") }
 
-                ComingSoonView(title: "Listen")
+                ListenPreviewView()
+                    .tabArrival()
                     .legibleTabBar()
                     .tabItem { Label("Listen", systemImage: "headphones") }
 
                 QiblaTabView()
+                    .tabArrival()
                     .legibleTabBar()
                     .tabItem { Label("Qibla", systemImage: "safari") }
 
                 MoreTabView()
+                    .tabArrival()
                     .legibleTabBar()
                     .tabItem { Label("More", systemImage: "ellipsis.circle") }
             }
@@ -72,6 +79,7 @@ struct FiveSkiesApp: App {
                 location: location,
                 service: service
             ))
+            .modifier(SignatureStarLifecycle(controller: signatureStar))
             .modifier(MotionEnvironment(
                 isFixedPhase: launch.fixedPhase != nil,
                 forcesAnimation: MotionPolicy.forcesAnimation()
@@ -83,6 +91,7 @@ struct FiveSkiesApp: App {
             .environmentObject(scheduler)
             .environmentObject(quran)
             .environmentObject(translations)
+            .environmentObject(signatureStar)
         }
     }
 }

@@ -6,6 +6,10 @@ struct QiblaTabView: View {
     // so this tab owns its own instance, started the same way.
     @StateObject private var location: LocationProvider
     @StateObject private var headingProvider: HeadingProvider
+    @State private var locatingTimedOut = false
+
+    /// How long to wait for the first fix before showing the Makkah fallback, as on Today.
+    private static let locatingTimeout: UInt64 = 4_000_000_000
 
     private let launch: LaunchOptions
     private let qiblaLaunch: QiblaLaunchOptions
@@ -22,6 +26,7 @@ struct QiblaTabView: View {
     var body: some View {
         QiblaScreen(
             place: place,
+            isLocating: isLocating,
             fixedPhase: launch.fixedPhase,
             heading: headingProvider.heading,
             pillOpensSettings: requestsLocation && location.isDenied,
@@ -36,6 +41,23 @@ struct QiblaTabView: View {
             .onDisappear {
                 headingProvider.stop()
             }
+            .task {
+                guard requestsLocation, !locatingTimedOut else { return }
+                do {
+                    try await Task.sleep(nanoseconds: Self.locatingTimeout)
+                } catch {
+                    return
+                }
+                locatingTimedOut = true
+            }
+    }
+
+    /// True while the first device fix is still expected, so no fallback direction is shown yet.
+    private var isLocating: Bool {
+        if qiblaLaunch.forcesLocating {
+            return true
+        }
+        return requestsLocation && location.coordinate == nil && !locatingTimedOut && location.isAwaitingFix
     }
 
     /// Where the tab is for. The `-FSFixedCoordinate` override uses the device time zone;
@@ -59,12 +81,13 @@ struct QiblaTabView: View {
     }
 
     private var requestsLocation: Bool {
-        qiblaLaunch.fixedCoordinate == nil && launch.requestsLocation
+        qiblaLaunch.fixedCoordinate == nil && !qiblaLaunch.forcesLocating && launch.requestsLocation
     }
 }
 
 private struct QiblaScreen: View {
     let place: Place
+    let isLocating: Bool
     let fixedPhase: Prayer?
     let heading: Double?
     let pillOpensSettings: Bool
@@ -79,7 +102,8 @@ private struct QiblaScreen: View {
 
     /// The Qibla direction is undefined at the Kaaba itself, so the fallback shows no number.
     private var bearing: Double? {
-        resolved == .makkah ? nil : QiblaBearing.degrees(from: resolved)
+        guard !isLocating else { return nil }
+        return resolved == .makkah ? nil : QiblaBearing.degrees(from: resolved)
     }
 
     private var guidance: QiblaGuidance.State {
@@ -132,12 +156,28 @@ private struct QiblaScreen: View {
 
     /// Same rules as the Today pill.
     private var locationText: String {
-        place.isFallback ? LocationPillText.fallback : LocationPillText.current
+        if isLocating {
+            return LocationPillText.locating
+        }
+        return place.isFallback ? LocationPillText.fallback : LocationPillText.current
     }
 
     @ViewBuilder
     private var bearingLabel: some View {
-        if let bearing = bearing {
+        if isLocating {
+            HStack(spacing: 12) {
+                ProgressView()
+                    .tint(.white)
+                    .controlSize(.regular)
+                Text("Finding your location")
+                    .font(.title2.weight(.heavy))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
+            .shadow(color: Color(hex: 0x071433, opacity: 0.5), radius: 17, y: 10)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("qiblaLocating")
+        } else if let bearing = bearing {
             Text(QiblaGuidance.bearingText(bearing))
                 .font(.system(size: bearingSize, weight: .black))
                 .kerning(-2)
@@ -157,11 +197,11 @@ private struct QiblaScreen: View {
 
     private var guidancePill: some View {
         HStack(spacing: 8) {
-            Image(systemName: iconName)
+            Image(systemName: isLocating ? "location.circle" : iconName)
                 .font(.subheadline.weight(.heavy))
                 .foregroundStyle(guidance == .aligned ? QiblaPalette.mint : QiblaPalette.gold)
                 .accessibilityHidden(true)
-            Text(guidance.text)
+            Text(isLocating ? "The direction appears as soon as your location is found" : guidance.text)
                 .font(.subheadline.weight(.bold))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -202,7 +242,11 @@ private struct QiblaSky: View {
 
     var body: some View {
         TimelineView(.periodic(from: clock.now(), by: 60)) { _ in
-            SkyView(phase: phase(at: clock.now()), showsCelestial: false)
+            let current = phase(at: clock.now())
+            ZStack {
+                SkyView(phase: current, showsCelestial: false)
+                SkyLegibilityScrim(phase: current)
+            }
         }
     }
 

@@ -85,6 +85,7 @@ private struct TodayScreen: View {
     @State private var revealed = false
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var scheduler: NotificationScheduler
+    @EnvironmentObject private var signatureStar: SignatureStarController
     private let store = PrayedStore()
 
     private var isLocating: Bool {
@@ -110,8 +111,12 @@ private struct TodayScreen: View {
     private func content(for day: PrayerDay, timeZone: TimeZone) -> some View {
         let next = day.nextPrayer(after: now)
         let format = TileTimeFormat(timeZone: timeZone)
+        let phase = day.skyPhase(at: now)
         return ZStack {
-            SkyView(phase: day.skyPhase(at: now))
+            SkyView(phase: phase)
+            SkyLegibilityScrim(phase: phase)
+            // In the sky, behind the words and tiles.
+            SignatureStarOverlay()
             VStack(spacing: 0) {
                 header(timeZone: timeZone)
                     .padding(.horizontal, 20)
@@ -136,6 +141,11 @@ private struct TodayScreen: View {
         .onAppear {
             revealed = true
         }
+        .onChange(of: phaseSample(phase), initial: true) { _, sample in
+            if let sample = sample {
+                signatureStar.observe(sample)
+            }
+        }
         .task(id: store.dayKey(for: now)) {
             prayed = store.prayers(on: now)
         }
@@ -154,6 +164,17 @@ private struct TodayScreen: View {
                 .environmentObject(settings)
                 .environmentObject(scheduler)
         }
+    }
+
+    /// The sky phase with what it was worked out for, or nil while locating.
+    private func phaseSample(_ phase: Prayer) -> SkyPhaseSample? {
+        guard let place = place else { return nil }
+        let location = place.isFallback
+            ? "fallback"
+            : String(format: "%.2f,%.2f", place.coordinate.latitude, place.coordinate.longitude)
+        let context = [location, String(describing: settings.calculationMethod), String(describing: settings.asrRule)]
+            .joined(separator: "|")
+        return SkyPhaseSample(phase: phase, context: context)
     }
 
     /// Changes when a new day's times are computed (new day, location, method or Asr rule)
@@ -194,7 +215,10 @@ private struct TodayScreen: View {
                     .background(Circle().fill(Color.white.opacity(0.16)))
                     .overlay(Circle().strokeBorder(Color.white.opacity(0.3), lineWidth: 1))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PressScaleButtonStyle(pressedScale: 0.9))
+            .sensoryFeedback(trigger: showsSettings) { _, opened in
+                opened ? .impact(weight: .light) : nil
+            }
             .accessibilityLabel("Settings")
         }
     }
@@ -219,8 +243,12 @@ private struct TodayScreen: View {
     }
 
     private func toggle(_ prayer: Prayer) {
-        store.setPrayed(!prayed.contains(prayer), prayer, on: now)
+        let marking = !prayed.contains(prayer)
+        store.setPrayed(marking, prayer, on: now)
         prayed = store.prayers(on: now)
+        if marking {
+            signatureStar.prayerMarked()
+        }
     }
 
     private static let dateStyle: Date.FormatStyle = {
@@ -254,7 +282,7 @@ private struct NextPrayerView: View {
         return VStack(spacing: 2) {
             Text("Now: \(currentName)")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.8))
+                .foregroundStyle(.white.opacity(0.92))
                 .padding(.bottom, 6)
                 .opacity(isLocating ? 0 : 1)
                 .accessibilityHidden(isLocating)
@@ -263,7 +291,8 @@ private struct NextPrayerView: View {
             Text("NEXT PRAYER")
                 .font(.caption.weight(.heavy))
                 .tracking(3)
-                .foregroundStyle(.white.opacity(0.85))
+                .foregroundStyle(.white.opacity(0.92))
+                .shadow(color: Color(hex: 0x071433, opacity: 0.35), radius: 4, y: 1)
                 .riseIn(revealed: revealed, delay: delay(1))
             Text(name)
                 .font(.system(size: nameSize, weight: .black))
@@ -346,14 +375,13 @@ private struct PrayerTile: View {
             .padding(.horizontal, 4)
             .frame(maxWidth: .infinity, minHeight: 108)
             .background(tileBackground)
-            .overlay(
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .strokeBorder(isNext ? Color.white : Color.white.opacity(0.22), lineWidth: 1)
-            )
+            .overlay(tileEdge)
             .modifier(NextTileGlow(isNext: isNext))
         }
         .buttonStyle(PressScaleButtonStyle(pressedScale: 0.96))
-        .sensoryFeedback(.selection, trigger: isPrayed)
+        .sensoryFeedback(trigger: isPrayed) { _, prayed in
+            prayed ? .success : .selection
+        }
         .accessibilityLabel(Text(accessibilityText))
         .accessibilityValue(Text(spokenTime))
         .accessibilityIdentifier("tile-\(prayer.rawValue)")
@@ -362,6 +390,21 @@ private struct PrayerTile: View {
     private var accessibilityText: String {
         let verb = isPrayed ? "Unmark" : "Mark"
         return "\(verb) \(prayer.displayName) as prayed"
+    }
+
+    /// A lit top edge fading down the sides, so each tile reads as a pane of glass.
+    private var tileEdge: some View {
+        RoundedRectangle(cornerRadius: 26, style: .continuous)
+            .strokeBorder(
+                LinearGradient(
+                    colors: isNext
+                        ? [Color.white, Color.white.opacity(0.7)]
+                        : [Color.white.opacity(0.45), Color.white.opacity(0.12)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ),
+                lineWidth: 1
+            )
     }
 
     @ViewBuilder
