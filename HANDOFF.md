@@ -111,3 +111,17 @@ Done and passing CI (runs 45999376982 and 46001723719, commits 3f143f7 and f4eb5
 
 Not verified: the live star timing on a real phone (CI cannot time it; the frozen frames show the look). The star's middle passes behind the small "Now:" line; judge on device, the arc is `SignatureStarDrawing.point`.
 TestFlight: Reef said yes at 08:13 ET; run 46005215756 succeeded, build 0.1.0 (3) uploaded with Phase A0. Next: Reef checks the star, tab fades and Qibla on his phone; then Phase A round 1 (A1, A2, A3).
+
+## Phase A round 1 status (Nov 27, 2026, afternoon, Opus)
+
+Passing CI (run 46035693325, commit c51d08b; CI now also compiles with Xcode 26 in job compile-xcode-26, so AlarmKit code is checked on every push).
+- A1 Day view: `FiveSkies/DayView/`, opened by tapping the date on Today (`openDayView`). Extra times come from `DaySchedule` in `FiveSkies/Prayer/DayDefinitions.swift` (all school offsets live there). Settings `ishaEnd` and `hijriAdjustment` are on the day view itself.
+- A2 Tracker 2: `FiveSkies/Tracker/` plus the rewritten `TrackerView.swift`. Pauses in UserDefaults "tracker.pauses". Choices made: a fully marked day inside a pause still counts; days before the first tracked day can be filled in from the week strip. `TrackerChipsView` sits above the Today tiles.
+- A3 Alerts: window-end reminder, 64-notification cap, night alarm (`NightAlarmPlan`, `NightAlarmKit`; AlarmKit on iOS 26, time-sensitive notification otherwise, no entitlement added). `NSAlarmKitUsageDescription` added in project.yml. No Isha end control in Settings (it is on the day view).
+
+Waiting on Reef:
+- City name on the day view: `PlaceNameProvider.lookupsEnabled` is false because Apple's geocoder would receive the coordinate, and docs/privacy.html plus the location prompt say the location is never sent anywhere. If he wants city names, reword both, then flip the flag.
+- A yes to run the TestFlight build for this round.
+FABLE CHECKPOINT (A1) still open: the discouraged windows, Duha start and Isha end definitions need a scholar's sign-off before any tester other than Reef.
+Not verified on a real phone: the night alarm on iOS 26, window-end reminders firing.
+Next build work: Phase A round 2 (A4 to A8).
