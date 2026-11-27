@@ -127,3 +127,15 @@ Not verified on a real phone: the night alarm on iOS 26, window-end reminders fi
 Next build work: Phase A round 2 (A4 to A8).
 
 Note (Nov 27): App Store Connect warned on build 4 (ITMS-90725, not a failure): from April 2027 uploads need the iOS 27 SDK (Xcode 27). The TestFlight and compile-xcode-26 jobs now pick the newest Xcode 26 or later on the runner, so they move to Xcode 27 by themselves once GitHub installs it. Check before April 2027 that a run says Xcode 27.
+
+## Phase A round 2 status (Nov 27, 2026, afternoon, Opus with six parallel builders)
+
+Passing CI (run 46039149151, commit 0b67598; day card layout fix in 5910b2f).
+- A4 Goals: `FiveSkies/Goals/` (GoalsView, GoalCreatorSheet, GoalProgress, GoalStore, DhikrLogStore). Tasbih shows a daily total, optional goal and a 7-day chart. "Fajr this month" counts days Fajr is marked (no on-time flag exists).
+- A5 Day cards: `FiveSkies/DayCards/`, on Today above the tracker chips. FABLE CHECK: the builder hides fasting notes during Ramadan, on 1 Shawwal and on 10 to 13 Dhul Hijjah; Fable should confirm the rule and the wording ("Some choose to fast today").
+- A6 Settings and backup: `FiveSkies/Trust/` (More tile "Settings and backup"). Greeting line on Today (name stays on device), backup to iCloud key-value storage under "fiveSkies.backup", feedback mail, mission page, what's new sheet at the app root. Restore asks the user to reopen the app.
+  iCloud sync needs Reef: enable iCloud (no CloudKit) on App ID app.fiveskies.ios, then add `com.apple.developer.ubiquity-kvstore-identifier` = `$(TeamIdentifierPrefix)$(CFBundleIdentifier)` to FiveSkies/WidgetSupport/FiveSkies.entitlements. Until then backup stays on the phone.
+- A6 Timetable: `FiveSkies/Timetable/` (More tile "Timetable"), month or year, PDF export through the share sheet.
+- A7 First run: `FiveSkies/Onboarding/`, gated by "onboarding.completed"; Today waits for it before asking for location. `-FSShowOnboarding` for screenshots.
+- A8 Widgets: start and until times, live countdown, new "Today's times" Lock Screen widget. Rows now run Fajr to Fajr (after Isha they show the same day with Isha current).
+Next: TestFlight for round 2 needs Reef's yes. Then Phase B planning is a Fable checkpoint (production access, default translation, audio terms).
