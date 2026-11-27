@@ -1,0 +1,7 @@
+City names: GeoNames (geonames.org), CC BY 4.0
+License: Creative Commons Attribution 4.0 International, https://creativecommons.org/licenses/by/4.0/
+Source: https://download.geonames.org/export/dump/cities15000.zip
+Downloaded: 2026-11-27 (UTC) by tools/fetch_cities.py
+Changes: kept only name, country code, latitude and longitude; coordinates rounded to 4 decimals;
+names in a non-Latin script replaced by the GeoNames ASCII name; sorted by latitude.
+Rows: 34247
