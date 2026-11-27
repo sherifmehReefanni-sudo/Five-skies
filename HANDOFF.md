@@ -160,3 +160,12 @@ Decisions on the "For Fable next" list:
 Build 5: fine to ship to Reef only, once CI passes on this commit and he says yes.
 Not done: sunnah.com #4540 and Islamic Network d/365 were not checked (page fetches need Reef's approval and timed out). Darussalam not checked.
 Next: this is build work, switch to Opus for round B1 in `docs/PHASE_B_PLAN.md` and P1 once Reef answers the city name question.
+
+## City name decision (Reef, Nov 27, 2026, 14:14 ET)
+
+Reef chose the offline city list. Build work for Opus:
+- Bundle a small city list (name, country code, latitude, longitude) and show the nearest city on the day view. No network call. Remove the CLGeocoder path from `FiveSkies/Location/PlaceNameProvider.swift` and the `lookupsEnabled` flag (replace, do not layer).
+- Source: GeoNames "cities15000" (about 33,000 places). Fable's recollection is that GeoNames data is CC BY 4.0, which needs a credit line. UNVERIFIED: read the license on geonames.org before bundling, then add the credit to the "Sources and credits" page (P2 in docs/PHASE_B_PLAN.md). Fetch the file in CI with a script under `tools/`, like the Quran text; keep only the four fields.
+- If the nearest city is far away (say over 50 km), show "Your location" instead of a wrong name.
+- The location prompt and onboarding line can then stay true for prayer times. The privacy page still needs the P1 rewrite (Apple Maps for Mosques and halal, the relay, iCloud backup).
+Reef also said yes to TestFlight build 5 (round 2, iCloud, Fable review fixes).
