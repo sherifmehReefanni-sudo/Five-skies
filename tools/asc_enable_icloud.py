@@ -46,7 +46,7 @@ def main():
     bundle = matches[0]["id"]
     print(f"App ID {BUNDLE_ID} found.")
 
-    current = call("GET", f"/bundleIds/{bundle}/bundleIdCapabilities", params={"limit": 200})
+    current = call("GET", f"/bundleIds/{bundle}/bundleIdCapabilities")
     types = sorted(item["attributes"]["capabilityType"] for item in current.get("data", []))
     print("Capabilities before: " + ", ".join(types))
     if "ICLOUD" in types:
@@ -73,7 +73,7 @@ def main():
         print(f"Turning on iCloud failed with HTTP {response.status_code}:")
         print(response.text[:2000])
         sys.exit(1)
-    after = call("GET", f"/bundleIds/{bundle}/bundleIdCapabilities", params={"limit": 200})
+    after = call("GET", f"/bundleIds/{bundle}/bundleIdCapabilities")
     print("Capabilities after: " + ", ".join(sorted(i["attributes"]["capabilityType"] for i in after.get("data", []))))
     print("iCloud is now on for " + BUNDLE_ID + ".")
 
