@@ -59,6 +59,7 @@ function getTokenManager(env, config) {
       clientId: env.QF_CLIENT_ID,
       clientSecret: env.QF_CLIENT_SECRET,
       now: () => clock(),
+      scopes: typeof env.QF_SCOPES === "string" && env.QF_SCOPES.trim() ? env.QF_SCOPES.trim().split(/\s+/) : undefined,
     });
     tokenManagerKey = key;
   }

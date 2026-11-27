@@ -35,7 +35,7 @@ function installStub() {
       assert.equal(init.method, "POST");
       assert.equal(init.headers["Content-Type"], "application/x-www-form-urlencoded");
       assert.equal(init.headers.Authorization, `Basic ${btoa(`${CLIENT_ID}:${SECRET}`)}`);
-      assert.equal(init.body, "grant_type=client_credentials&scope=content");
+      assert.match(init.body, /^grant_type=client_credentials&scope=content\.quran\.read(%20content\.[a-z]+\.read)*$/);
       await new Promise((r) => setTimeout(r, qf.tokenDelayMs));
       const token = qf.tokens[Math.min(qf.tokenCalls - 1, qf.tokens.length - 1)];
       return Response.json({ access_token: token, expires_in: qf.expiresIn, token_type: "bearer" });
@@ -402,4 +402,23 @@ test("rate limiter binding returns 429 when over the limit", async () => {
   assert.equal(res.status, 429);
   assert.ok(!(await res.text()).includes("203.0.113.9"));
   assert.deepEqual(seenKeys, ["203.0.113.9", "203.0.113.9", "203.0.113.9"]);
+});
+
+
+test("token: when the full scope list is refused, keeps only the scopes that are granted", async () => {
+  const { TokenManager } = await import("../src/token.js");
+  const bodies = [];
+  const granted = new Set(["content.quran.read", "content.sync.read"]);
+  const fetchImpl = async (_url, init) => {
+    bodies.push(init.body);
+    const scopes = decodeURIComponent(init.body.split("scope=")[1]).split(" ");
+    if (scopes.every((s) => granted.has(s))) {
+      return Response.json({ access_token: "tok", expires_in: 3600 });
+    }
+    return new Response("{}", { status: 400 });
+  };
+  const tm = new TokenManager({ authBase: "https://auth.test", clientId: "id", clientSecret: "sec", fetchImpl });
+  assert.equal(await tm.getToken(), "tok");
+  assert.deepEqual(tm.grantedScopes, ["content.quran.read", "content.sync.read"]);
+  assert.equal(bodies.at(-1), "grant_type=client_credentials&scope=content.quran.read%20content.sync.read");
 });

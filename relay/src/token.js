@@ -4,6 +4,16 @@
 
 const REFRESH_MARGIN_MS = 60 * 1000; // refresh when fewer than 60 seconds remain
 
+// Quran Foundation gives new apps granular content scopes instead of "content".
+export const DEFAULT_SCOPES = [
+  "content.quran.read",
+  "content.translations.read",
+  "content.tafsirs.read",
+  "content.audio.read",
+  "content.metadata.read",
+  "content.sync.read",
+];
+
 export class TokenError extends Error {
   constructor(message, status) {
     super(message);
@@ -13,7 +23,7 @@ export class TokenError extends Error {
 }
 
 export class TokenManager {
-  constructor({ authBase, clientId, clientSecret, fetchImpl, now }) {
+  constructor({ authBase, clientId, clientSecret, fetchImpl, now, scopes }) {
     this.authBase = authBase;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
@@ -22,6 +32,8 @@ export class TokenManager {
     this.token = null;
     this.expiresAt = 0;
     this.inFlight = null;
+    this.scopes = Array.isArray(scopes) && scopes.length > 0 ? scopes : DEFAULT_SCOPES;
+    this.grantedScopes = null;
   }
 
   // Returns a valid token, fetching one only when needed.
@@ -46,21 +58,41 @@ export class TokenManager {
     }
   }
 
-  async fetchToken() {
+  // Asks the token endpoint for the given scopes. Returns the Response.
+  async requestToken(scopes) {
     const basic = btoa(`${this.clientId}:${this.clientSecret}`);
-    let res;
     try {
-      res = await this.fetchImpl(`${this.authBase}/oauth2/token`, {
+      return await this.fetchImpl(`${this.authBase}/oauth2/token`, {
         method: "POST",
         headers: {
           Authorization: `Basic ${basic}`,
           "Content-Type": "application/x-www-form-urlencoded",
           Accept: "application/json",
         },
-        body: "grant_type=client_credentials&scope=content",
+        body: `grant_type=client_credentials&scope=${encodeURIComponent(scopes.join(" "))}`,
       });
     } catch {
       throw new TokenError("token endpoint unreachable");
+    }
+  }
+
+  async fetchToken() {
+    let scopes = this.grantedScopes || this.scopes;
+    let res = await this.requestToken(scopes);
+    // A 400 usually means one of the scopes is not granted to this client.
+    // Find the ones that are, once, and remember them for this isolate.
+    if (res.status === 400 && !this.grantedScopes && this.scopes.length > 1) {
+      const granted = [];
+      for (const scope of this.scopes) {
+        const probe = await this.requestToken([scope]);
+        if (probe.ok) granted.push(scope);
+      }
+      if (granted.length === 0) {
+        throw new TokenError("token endpoint returned 400 for every scope", 400);
+      }
+      this.grantedScopes = granted;
+      console.log(`QF scopes granted: ${granted.join(" ")}`);
+      res = await this.requestToken(granted);
     }
     if (!res.ok) {
       throw new TokenError(`token endpoint returned ${res.status}`, res.status);
