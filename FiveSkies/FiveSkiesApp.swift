@@ -14,7 +14,7 @@ struct FiveSkiesApp: App {
     /// Decides when the signature shooting star plays on Today.
     @StateObject private var signatureStar = SignatureStarController()
     /// The one recitation player, shared by the Quran tab and the lock screen controls.
-    @StateObject private var listenPlayer = ListenPlayer.live()
+    @StateObject private var listenPlayer: ListenPlayer
     /// True until the first-run flow closes, so Today does not ask for location behind it.
     @State private var firstRunPending = OnboardingGate.live().shouldShow
 
@@ -28,6 +28,9 @@ struct FiveSkiesApp: App {
         let settings = AppSettings()
         let location = LocationProvider()
         _location = StateObject(wrappedValue: location)
+        let player = ListenPlayer.live()
+        player.timingProvider = SurahTimingFactory.live()
+        _listenPlayer = StateObject(wrappedValue: player)
         self.launch = launch
         self.service = service
         _settings = StateObject(wrappedValue: settings)

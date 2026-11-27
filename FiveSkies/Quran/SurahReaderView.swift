@@ -25,6 +25,8 @@ struct SurahReaderView: View {
     @State private var didInitialScroll = false
     @State private var visibleAyahs: Set<Int> = []
     @State private var saveTask: Task<Void, Never>?
+    /// Word ranges over the stored ayah strings, lined up with the player's timings (rules W1 to W5).
+    @State private var followAlong: SurahFollowAlong?
 
     var body: some View {
         Group {
@@ -125,6 +127,8 @@ struct SurahReaderView: View {
             .onAppear {
                 scrollToInitialAyah(proxy, count: ayahs.count)
             }
+            // A separate watcher, so the reader itself does not redraw on every player update.
+            .background(FollowAlongTimingsWatcher(chapter: sura.number, ayahs: ayahs, followAlong: $followAlong))
         }
         .quranSkyBackground()
         .foregroundStyle(.white)
@@ -211,16 +215,7 @@ struct SurahReaderView: View {
             showsActions = true
         } label: {
             VStack(alignment: .leading, spacing: 10) {
-                Text(verbatim: ayah.displayText)
-                    .font(QuranPalette.arabicFont(size: size))
-                    .lineSpacing(size * 0.6)
-                    .foregroundStyle(QuranPalette.arabicText)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, size * 0.2)
-                    .environment(\.layoutDirection, .rightToLeft)
-                    .quranSpeechLanguage("ar")
+                FollowAlongAyahText(ayah: ayah, followAlong: followAlong, size: size)
 
                 if let translation {
                     AyahTranslationText(text: translation)
@@ -380,5 +375,88 @@ struct ReaderTextSizeSheet: View {
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(MorePalette.ink.ignoresSafeArea())
+    }
+}
+
+/// The Arabic of one ayah, drawn from the stored string exactly as it is (rule W1).
+/// While this surah plays, the current word is drawn in gold, or the whole ayah is marked when
+/// it lines up at ayah level only (W3). The highlight is drawing only: no animation (W8, so
+/// nothing moves under Reduce Motion) and nothing is announced to VoiceOver.
+/// It watches the player itself, so the frequent position updates redraw only visible ayahs.
+private struct FollowAlongAyahText: View {
+    let ayah: Ayah
+    let followAlong: SurahFollowAlong?
+    let size: CGFloat
+
+    @EnvironmentObject private var player: ListenPlayer
+
+    var body: some View {
+        let highlight = FollowAlongState.highlight(
+            readerChapter: ayah.sura,
+            playingChapter: player.item?.chapter,
+            currentAyah: player.currentAyah,
+            currentWord: player.currentWord,
+            followAlong: followAlong
+        )
+        let current = highlight?.ayah == ayah.number ? highlight : nil
+        return Text(attributedText(current))
+            .font(QuranPalette.arabicFont(size: size))
+            .lineSpacing(size * 0.6)
+            .foregroundStyle(QuranPalette.arabicText)
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, size * 0.2)
+            .environment(\.layoutDirection, .rightToLeft)
+            .quranSpeechLanguage("ar")
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(QuranPalette.gold.opacity(current == nil ? 0 : 0.1))
+                    .padding(-6)
+            )
+            .transaction { $0.animation = nil }
+    }
+
+    /// The stored string as an AttributedString, with the playing word coloured.
+    /// The ranges come from `SurahFollowAlong` and index this same string; nothing is rebuilt.
+    private func attributedText(_ highlight: FollowAlongHighlight?) -> AttributedString {
+        let shown = followAlong?.text(forAyah: ayah.number)
+        let source = shown?.text ?? ayah.displayText
+        var attributed = AttributedString(source)
+        guard case let .word(_, range)? = highlight, let shown, shown.text == source else {
+            return attributed
+        }
+        let offsets = shown.scalarOffsets(of: range)
+        let scalars = attributed.unicodeScalars
+        guard offsets.lowerBound >= 0, offsets.upperBound <= scalars.count, offsets.lowerBound < offsets.upperBound else {
+            return attributed
+        }
+        let lower = scalars.index(scalars.startIndex, offsetBy: offsets.lowerBound)
+        let upper = scalars.index(scalars.startIndex, offsetBy: offsets.upperBound)
+        attributed[lower..<upper].foregroundColor = QuranPalette.gold
+        return attributed
+    }
+}
+
+/// Rebuilds the follow-along ranges when the player's timings change. Draws nothing.
+private struct FollowAlongTimingsWatcher: View {
+    let chapter: Int
+    let ayahs: [Ayah]
+    @Binding var followAlong: SurahFollowAlong?
+
+    @EnvironmentObject private var player: ListenPlayer
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+            .onChange(of: player.timings, initial: true) { _, timings in
+                followAlong = SurahFollowAlong(chapter: chapter, ayahs: ayahs, timings: timings)
+                #if DEBUG
+                if let timings, timings.chapter == chapter {
+                    _ = FollowAlongDebugReport.report(timings: timings, ayahs: ayahs)
+                }
+                #endif
+            }
     }
 }
