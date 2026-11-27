@@ -68,6 +68,21 @@ enum AsrRule: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// When the Isha window is shown as ending. Schools differ; see DayDefinitions.swift.
+enum IshaEndRule: String, Codable, CaseIterable, Identifiable {
+    case middleOfNight
+    case fajr
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .middleOfNight: return "Middle of the night"
+        case .fajr: return "Fajr"
+        }
+    }
+}
+
 /// The alert part of the settings as a plain value, used to build the notification plan.
 struct AlertPreferences: Equatable {
     var modes: [Prayer: AlertMode]
@@ -87,6 +102,7 @@ struct AlertPreferences: Equatable {
 struct SettingsSnapshot: Equatable {
     let calculationMethod: PrayerCalculationMethod
     let asrRule: AsrRule
+    let ishaEnd: IshaEndRule
     let alerts: AlertPreferences
 }
 
@@ -98,11 +114,16 @@ final class AppSettings: ObservableObject {
     static let defaultReminderMinutes = 0
     /// Minutes before a prayer for the optional reminder. 0 means no reminder.
     static let reminderOptions = [0, 5, 10, 15, 30]
+    static let defaultIshaEnd = IshaEndRule.middleOfNight
+    /// Days added to the calculated Hijri date, to match local moon sighting.
+    static let hijriAdjustmentRange = -2...2
 
     enum Keys {
         static let calculationMethod = "settings.calculationMethod"
         static let asrRule = "settings.asrRule"
         static let reminderMinutesBefore = "settings.reminderMinutesBefore"
+        static let ishaEnd = "settings.ishaEnd"
+        static let hijriAdjustment = "settings.hijriAdjustment"
         static func alertMode(for prayer: Prayer) -> String {
             "settings.alertMode.\(prayer.rawValue)"
         }
@@ -121,6 +142,22 @@ final class AppSettings: ObservableObject {
 
     @Published var reminderMinutesBefore: Int {
         didSet { defaults.set(reminderMinutesBefore, forKey: Keys.reminderMinutesBefore) }
+    }
+
+    @Published var ishaEnd: IshaEndRule {
+        didSet { defaults.set(ishaEnd.rawValue, forKey: Keys.ishaEnd) }
+    }
+
+    /// -2 to +2 days, added to the Umm al-Qura date wherever a Hijri date is shown.
+    @Published var hijriAdjustment: Int {
+        didSet {
+            let clamped = min(max(hijriAdjustment, Self.hijriAdjustmentRange.lowerBound), Self.hijriAdjustmentRange.upperBound)
+            if clamped != hijriAdjustment {
+                hijriAdjustment = clamped
+                return
+            }
+            defaults.set(hijriAdjustment, forKey: Keys.hijriAdjustment)
+        }
     }
 
     private let defaults: UserDefaults
@@ -149,6 +186,16 @@ final class AppSettings: ObservableObject {
         _asrRule = Published(initialValue: rule)
         _alertModes = Published(initialValue: modes)
         _reminderMinutesBefore = Published(initialValue: minutes)
+
+        let ishaEnd = defaults.string(forKey: Keys.ishaEnd)
+            .flatMap(IshaEndRule.init(rawValue:)) ?? Self.defaultIshaEnd
+        var adjustment = 0
+        if let stored = defaults.object(forKey: Keys.hijriAdjustment) as? Int,
+           Self.hijriAdjustmentRange.contains(stored) {
+            adjustment = stored
+        }
+        _ishaEnd = Published(initialValue: ishaEnd)
+        _hijriAdjustment = Published(initialValue: adjustment)
     }
 
     func alertMode(for prayer: Prayer) -> AlertMode {
@@ -165,6 +212,6 @@ final class AppSettings: ObservableObject {
     }
 
     var snapshot: SettingsSnapshot {
-        SettingsSnapshot(calculationMethod: calculationMethod, asrRule: asrRule, alerts: alertPreferences)
+        SettingsSnapshot(calculationMethod: calculationMethod, asrRule: asrRule, ishaEnd: ishaEnd, alerts: alertPreferences)
     }
 }

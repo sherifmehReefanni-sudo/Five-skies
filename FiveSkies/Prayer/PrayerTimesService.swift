@@ -53,13 +53,14 @@ struct PrayerTimesService {
         )
     }
 
-    private var localCalendar: Calendar {
+    var localCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         return calendar
     }
 
-    private func prayerTimes(at coordinate: Coordinate, on date: Date, calendar: Calendar) -> PrayerTimes? {
+    /// The Adhan library's times for one calendar day. Internal so the app can derive extra times from it.
+    func prayerTimes(at coordinate: Coordinate, on date: Date, calendar: Calendar) -> PrayerTimes? {
         var parameters = method.params
         parameters.madhab = madhab
         let components = calendar.dateComponents([.year, .month, .day], from: date)
