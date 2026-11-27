@@ -110,4 +110,4 @@ Done and passing CI (runs 45999376982 and 46001723719, commits 3f143f7 and f4eb5
 - Nothing under `FiveSkies/Quran/` was touched (Fable checkpoint 1).
 
 Not verified: the live star timing on a real phone (CI cannot time it; the frozen frames show the look). The star's middle passes behind the small "Now:" line; judge on device, the arc is `SignatureStarDrawing.point`.
-Not done: the TestFlight build for A0. Starting the workflow from here needs Reef's explicit yes (the tool blocked it as an upload).
+TestFlight: Reef said yes at 08:13 ET; run 46005215756 succeeded, build 0.1.0 (3) uploaded with Phase A0. Next: Reef checks the star, tab fades and Qibla on his phone; then Phase A round 1 (A1, A2, A3).
