@@ -26,7 +26,7 @@ struct ListenPreviewView: View {
 
     var body: some View {
         ZStack {
-            SkyView(phase: .isha, showsCelestial: false)
+            Color.clear.moreSkyBackground(.tasbih)
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     Text("Listen")

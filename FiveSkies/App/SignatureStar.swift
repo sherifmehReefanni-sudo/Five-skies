@@ -132,9 +132,28 @@ struct SignatureStarOverlay: View {
     @Environment(\.motionEnabled) private var motionEnabled
     @State private var startedAt: Date?
 
+    /// `-FSStarFrame <share>` draws the star frozen at that share (0 to 1) of its crossing,
+    /// whatever the motion setting, so screenshots can show exactly how it looks.
+    static let frozenFrameArgument = "-FSStarFrame"
+
+    static func readFrozenShare(processInfo: ProcessInfo = .processInfo) -> Double? {
+        let arguments = processInfo.arguments
+        guard let index = arguments.firstIndex(of: frozenFrameArgument),
+              arguments.indices.contains(index + 1),
+              let share = Double(arguments[index + 1]) else { return nil }
+        return min(max(share, 0), 1)
+    }
+
+    private let frozenShare = SignatureStarOverlay.readFrozenShare()
+
     var body: some View {
         ZStack {
-            if motionEnabled, let start = startedAt {
+            Color.clear
+            if let share = frozenShare {
+                Canvas { canvas, size in
+                    SignatureStarDrawing.draw(in: &canvas, size: size, elapsed: share * SignatureStarDrawing.duration)
+                }
+            } else if motionEnabled, let start = startedAt {
                 TimelineView(.animation) { context in
                     let elapsed = context.date.timeIntervalSince(start)
                     Canvas { canvas, size in
@@ -148,7 +167,7 @@ struct SignatureStarOverlay: View {
         .allowsHitTesting(false)
         .accessibilityHidden(true)
         .task(id: controller.playCount) {
-            guard motionEnabled, let reason = controller.takePending() else { return }
+            guard frozenShare == nil, motionEnabled, let reason = controller.takePending() else { return }
             // On opening, the headline and tiles rise in first; the star follows them.
             let delay: Double = reason == .appOpened ? 0.7 : 0.15
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))

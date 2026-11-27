@@ -295,7 +295,7 @@ private struct GalaxyBand: View {
             with: .linearGradient(
                 Gradient(stops: [
                     Gradient.Stop(color: Color(hex: 0xB9C4FF, opacity: 0), location: 0),
-                    Gradient.Stop(color: Color(hex: 0xB9C4FF, opacity: 0.09), location: 0.5),
+                    Gradient.Stop(color: Color(hex: 0xB9C4FF, opacity: 0.14), location: 0.5),
                     Gradient.Stop(color: Color(hex: 0xB9C4FF, opacity: 0), location: 1)
                 ]),
                 startPoint: CGPoint(x: 0, y: -height / 2),
@@ -541,8 +541,7 @@ private struct CelestialView: View {
 /// A few faint darker patches on the full moon, laid out as fractions of its width.
 private struct MoonSurface: View {
     private static let patches: [(x: CGFloat, y: CGFloat, r: CGFloat, opacity: Double)] = [
-        (0.36, 0.34, 0.16, 0.10), (0.58, 0.30, 0.11, 0.08), (0.62, 0.56, 0.18, 0.09),
-        (0.38, 0.64, 0.10, 0.07), (0.50, 0.46, 0.07, 0.06)
+        (0.36, 0.36, 0.15, 0.05), (0.60, 0.32, 0.10, 0.04), (0.60, 0.58, 0.16, 0.045)
     ]
 
     var body: some View {
@@ -554,7 +553,7 @@ private struct MoonSurface: View {
                     Circle()
                         .fill(Color(hex: 0x8C8670, opacity: patch.opacity))
                         .frame(width: width * patch.r * 2, height: width * patch.r * 2)
-                        .blur(radius: width * 0.02)
+                        .blur(radius: width * 0.06)
                         .position(x: width * patch.x, y: width * patch.y)
                 }
             }

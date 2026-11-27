@@ -32,25 +32,25 @@ final class MotionUITests: XCTestCase {
         }
     }
 
-    /// The signature star plays shortly after the app opens. Frames are taken back to back
-    /// so at least a few land inside its 1.4 second crossing.
+    /// The signature star frozen at points of its crossing, on a night sky and a bright one.
+    /// Live frames cannot be timed reliably on CI, so the look is checked this way.
     @MainActor
-    func testSignatureStarFramesOnOpening() throws {
-        for phase in ["isha", "dhuhr"] {
+    func testSignatureStarFrozenFrames() throws {
+        let frames: [(phase: String, share: String)] = [
+            ("isha", "0.3"), ("isha", "0.55"), ("isha", "0.85"), ("dhuhr", "0.55"), ("maghrib", "0.55")
+        ]
+        for frame in frames {
             let app = XCUIApplication()
-            app.launchArguments = ["-FSFixedPhase", phase, "-FSAnimate"]
+            app.launchArguments = ["-FSFixedPhase", frame.phase, "-FSStarFrame", frame.share]
             app.launch()
             XCTAssertTrue(
                 app.staticTexts["nextPrayerName"].waitForExistence(timeout: 20),
-                "Today screen did not appear for \(phase)"
+                "Today screen did not appear for \(frame.phase)"
             )
-            for frame in 1...10 {
-                let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-                attachment.name = "star-\(phase)-\(frame)"
-                attachment.lifetime = .keepAlways
-                add(attachment)
-                Thread.sleep(forTimeInterval: 0.12)
-            }
+            let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            attachment.name = "star-\(frame.phase)-\(frame.share)"
+            attachment.lifetime = .keepAlways
+            add(attachment)
             app.terminate()
         }
     }
