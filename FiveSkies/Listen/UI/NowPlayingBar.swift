@@ -40,6 +40,12 @@ struct NowPlayingBar: View {
         .overlay(alignment: .bottom) {
             progressLine
         }
+        // A solid frosted backing first, so rows scrolling underneath never show through the text.
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(.ultraThickMaterial)
+                .environment(\.colorScheme, .dark)
+        )
         .moreGlass(.dark, cornerRadius: 22)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("nowPlayingBar")
