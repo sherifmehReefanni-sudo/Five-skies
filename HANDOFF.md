@@ -57,3 +57,13 @@ Next build work (Opus): add `FSRelayBaseURL` and `FSRelayAppKey` to the app's In
 Not verified: Arabic rendering by a qualified reader (gate before launch); everything on a real device; translations against the live API; the name "Five Skies" (trademark, domain, App Store).
 
 Blocked content with no acceptable source yet: prophet stories, Makkah and Madinah adhan recordings.
+
+## Update Nov 27, 2026 (morning)
+
+- Relay is live at https://five-skies-relay.sherif-d13.workers.dev (Cloudflare account of Steady Path, prelive Quran Foundation credentials). Real calls work. New QF apps use granular scopes (content.quran.read and so on), not "content"; the relay handles this.
+- Prelive offers only 14 translations; the only English one is M.A.S. Abdel Haleem (id 85). The Clear Quran (131) and Saheeh International (20) are not in prelive. Production access needs Quran Foundation review. Choosing the default translation is a Fable checkpoint.
+- Content Sync shape confirmed live: RESOURCE_CREATE mutation with snapshot_url `/api/v4/resources/snapshots/translations/<id>`.
+- The app reads the relay address and key from build settings FS_RELAY_BASE_URL and FS_RELAY_APP_KEY (TestFlight workflow passes them; secret FS_RELAY_APP_KEY).
+- All GitHub secrets are set. First TestFlight run (45987281910) failed at archive: "Your team has no devices". Fix in progress: register Reef's iPhone under Devices, then rerun. Compile under Xcode 26 is still unproven.
+- Posted: sunnah.com issue #4540; Islamic Network adhan request https://community.islamic.network/d/365 (account fiveskies). Darussalam email sent Nov 26. All three await replies.
+- QF scopes include content.hadith.read, so QF may be a second hadith source. Not checked.
