@@ -59,3 +59,83 @@ enum ListenLaunch {
         processInfo.arguments.contains(fakeArgument)
     }
 }
+
+// MARK: - Round C1 contracts (docs/LEARN_LISTEN_PLAN.md sections 2 and 3). Owned by the lead.
+
+/// One word's place in a recitation, by Quran Foundation's word number in that ayah (1 based).
+struct WordTiming: Equatable, Sendable {
+    let position: Int
+    let start: Double
+    let end: Double
+}
+
+/// One ayah's place in a surah recitation, in seconds from the start of the file.
+struct AyahTiming: Equatable, Sendable {
+    let ayah: Int
+    let start: Double
+    let end: Double
+    /// Empty when the source gives no word timings for this ayah.
+    let words: [WordTiming]
+}
+
+/// Timings for one reciter's recitation of one surah, held in memory only.
+struct SurahTimings: Equatable, Sendable {
+    let reciterID: Int
+    let chapter: Int
+    let ayahs: [AyahTiming]
+
+    /// The ayah playing at `seconds`, if any.
+    func ayah(at seconds: Double) -> AyahTiming? {
+        ayahs.first { seconds >= $0.start && seconds < $0.end }
+    }
+}
+
+/// Supplies timings when they exist. Built by FiveSkies/Listen/Timing/.
+protocol SurahTimingProviding: Sendable {
+    func timings(reciterID: Int, chapter: Int) async -> SurahTimings?
+}
+
+/// What happens when a surah finishes (plan section 3).
+enum SurahEndAction: Equatable, Codable, Sendable {
+    case stop
+    case playNext
+    /// nil repeats until stopped.
+    case repeatSurah(times: Int?)
+    /// Plays surahs from `first` to `last`, then stops.
+    case playSet(first: Int, last: Int)
+}
+
+/// The listener's play choices, remembered between launches.
+struct PlayModes: Equatable, Codable, Sendable {
+    static let ayahRepeatChoices = [1, 2, 3, 5, 10]
+    static let surahRepeatChoices: [Int?] = [1, 3, 7, nil]
+
+    var surahEnd: SurahEndAction = .stop
+    /// Each ayah plays this many times before moving on. Needs timings; 1 means off.
+    var ayahRepeat: Int = 1
+    /// After each ayah, wait as long as the ayah lasted. Needs timings.
+    var reciteAfterMe = false
+    /// Pause when a prayer time arrives and offer to resume. On by default.
+    var pausesForPrayer = true
+
+    init() {}
+
+    private enum CodingKeys: String, CodingKey {
+        case surahEnd, ayahRepeat, reciteAfterMe, pausesForPrayer
+    }
+
+    /// Fields missing from an older saved copy keep their defaults, so adding a field never resets the rest.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        surahEnd = (try? container.decodeIfPresent(SurahEndAction.self, forKey: .surahEnd)) ?? .stop
+        ayahRepeat = (try? container.decodeIfPresent(Int.self, forKey: .ayahRepeat)) ?? 1
+        reciteAfterMe = (try? container.decodeIfPresent(Bool.self, forKey: .reciteAfterMe)) ?? false
+        pausesForPrayer = (try? container.decodeIfPresent(Bool.self, forKey: .pausesForPrayer)) ?? true
+    }
+}
+
+/// Makes the item for another surah with the same reciter, so the player can move on by itself.
+/// Built by FiveSkies/Listen/UI/ from the catalog and the bundled surah names.
+protocol ListenQueueResolving: Sendable {
+    func item(chapter: Int, reciter: Reciter) async throws -> NowPlayingItem
+}

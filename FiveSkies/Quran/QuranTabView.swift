@@ -22,29 +22,56 @@ enum QuranListMode: String, CaseIterable, Identifiable {
     }
 }
 
-/// The Quran tab: continue reading, then the sura, juz and bookmark lists.
+/// The Quran tab, reader and player in one place: the chosen reciter, continue reading, then
+/// the sura, juz and bookmark lists, with a play button on each sura and a play bar at the
+/// bottom here and in the reader. Reading silently works with nothing playing.
 struct QuranTabView: View {
     @EnvironmentObject private var quran: QuranStore
     @StateObject private var bookmarks = QuranBookmarksStore()
     @StateObject private var lastRead = QuranLastReadStore()
+    @StateObject private var listen: QuranListenModel
 
     @State private var path: [QuranReaderTarget] = []
     @State private var mode: QuranListMode = .surahs
     @State private var query = ""
+    @State private var showsReciters = false
+    @State private var showsPlayer = false
 
-    init() {}
+    init() {
+        _listen = StateObject(wrappedValue: QuranListenModel(catalog: ListenCatalogFactory.live()))
+    }
+
+    init(catalog: any ListenCatalog, defaults: UserDefaults = .standard) {
+        _listen = StateObject(wrappedValue: QuranListenModel(catalog: catalog, defaults: defaults))
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
             content
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    QuranPlayBar(model: listen, readerSura: nil, readerSuraName: nil, onOpenPlayer: openPlayer)
+                }
                 .navigationTitle("Quran")
                 .navigationBarTitleDisplayMode(.large)
                 .navigationDestination(for: QuranReaderTarget.self) { target in
                     SurahReaderView(suraNumber: target.sura, initialAyah: target.aya)
+                        .safeAreaInset(edge: .bottom, spacing: 0) {
+                            QuranPlayBar(
+                                model: listen,
+                                readerSura: target.sura,
+                                readerSuraName: quran.sura(target.sura)?.transliteratedName,
+                                onOpenPlayer: openPlayer
+                            )
+                        }
                 }
         }
         .environmentObject(bookmarks)
         .environmentObject(lastRead)
+        .modifier(QuranListenHost(model: listen, showsReciters: $showsReciters, showsPlayer: $showsPlayer))
+    }
+
+    private func openPlayer() {
+        showsPlayer = true
     }
 
     @ViewBuilder
@@ -89,6 +116,13 @@ struct QuranTabView: View {
     private func list(_ data: QuranData) -> some View {
         let searching = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return List {
+            if !searching {
+                QuranReciterRow(model: listen) {
+                    showsReciters = true
+                }
+                .quranListRow()
+            }
+
             if !searching, let position = lastRead.position, let sura = data.sura(position.sura) {
                 continueCard(sura: sura, position: position)
                     .quranListRow()
@@ -170,15 +204,23 @@ struct QuranTabView: View {
                 .padding(.vertical, 24)
                 .quranListRow()
         }
+        let offersPlayback = listen.offersPlayback
         ForEach(suras) { sura in
             Button {
                 path.append(QuranReaderTarget(sura: sura.number, aya: nil))
             } label: {
-                SuraRowLabel(sura: sura)
+                SuraRowLabel(sura: sura, reservesPlayButton: offersPlayback)
             }
             .buttonStyle(PressScaleButtonStyle())
             .accessibilityLabel(Text(verbatim: Self.suraAccessibilityLabel(sura)))
+            .accessibilityHint("Opens the reader")
             .accessibilityIdentifier("suraRow-\(sura.number)")
+            .overlay(alignment: .trailing) {
+                if offersPlayback {
+                    QuranSurahPlayButton(model: listen, sura: sura)
+                        .padding(.trailing, 14)
+                }
+            }
             .quranListRow()
         }
     }
@@ -246,8 +288,10 @@ struct QuranTabView: View {
 }
 
 /// One sura in the list: number badge, names and counts, Arabic name on the right.
+/// Leaves room on the right for the play button drawn over the row.
 private struct SuraRowLabel: View {
     let sura: Sura
+    let reservesPlayButton: Bool
 
     var body: some View {
         HStack(spacing: 12) {
@@ -268,6 +312,11 @@ private struct SuraRowLabel: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .quranSpeechLanguage("ar")
+            if reservesPlayButton {
+                Color.clear
+                    .frame(width: QuranSurahPlayButton.size, height: QuranSurahPlayButton.size)
+                    .accessibilityHidden(true)
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)

@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The full player: play and pause, 15 second skips, a scrubber, speed, loop surah and the
-/// sleep timer. The credit line sits under the title so it is always in view (D9).
+/// The full player: play and pause, 15 second skips, a scrubber, speed, the sleep timer and
+/// the play modes. The credit line sits under the title so it is always in view (D9).
 struct ListenPlayerSheet: View {
     @EnvironmentObject private var player: ListenPlayer
     @Environment(\.dismiss) private var dismiss
@@ -61,9 +61,10 @@ struct ListenPlayerSheet: View {
                     .multilineTextAlignment(.center)
                     .accessibilityAddTraits(.isHeader)
                     .accessibilityIdentifier("playerTitle")
-                Text(verbatim: "Surah \(item.chapter)")
-                    .font(.subheadline.weight(.semibold))
+                Text(verbatim: placeLine(item))
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
                     .foregroundStyle(MorePalette.secondaryText)
+                    .accessibilityIdentifier("playerPlace")
                 Text(verbatim: item.credit)
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(MorePalette.goldLight)
@@ -71,6 +72,14 @@ struct ListenPlayerSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityLabel(Text(verbatim: "Recited by \(item.credit)"))
                     .accessibilityIdentifier("playerCredit")
+                if player.isWaitingForListener {
+                    ListenYourTurnBadge(identifier: "playerYourTurn")
+                        .padding(.top, 4)
+                }
+            }
+
+            if let prayer = player.pausedForPrayer {
+                ListenPrayerPauseBanner(prayer: prayer, identifier: "playerPrayerPause")
             }
 
             scrubber
@@ -87,7 +96,17 @@ struct ListenPlayerSheet: View {
             }
 
             options(item)
+
+            ListenPlayModesSection(item: item)
         }
+    }
+
+    /// "Surah 2", or "Surah 2 · Ayah 5" when timings say which ayah is playing.
+    private func placeLine(_ item: NowPlayingItem) -> String {
+        if let ayah = player.currentAyah {
+            return "Surah \(item.chapter) \u{00B7} Ayah \(ayah)"
+        }
+        return "Surah \(item.chapter)"
     }
 
     // MARK: - Scrubber
@@ -164,22 +183,11 @@ struct ListenPlayerSheet: View {
         .accessibilityIdentifier(identifier)
     }
 
-    // MARK: - Speed, loop, sleep
+    // MARK: - Speed, sleep
 
     private func options(_ item: NowPlayingItem) -> some View {
         VStack(spacing: 0) {
             speedMenu
-            divider
-            Toggle(isOn: Binding(
-                get: { player.loopsSurah },
-                set: { player.loopsSurah = $0 }
-            )) {
-                optionLabel(symbol: "repeat", title: "Loop surah", value: nil)
-            }
-            .tint(MorePalette.gold)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .accessibilityIdentifier("playerLoopSurah")
             divider
             sleepMenu(item)
         }

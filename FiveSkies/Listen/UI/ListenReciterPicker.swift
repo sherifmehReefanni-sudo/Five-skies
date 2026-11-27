@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The list of reciters, as the Quran Foundation API gives them (D4). Names are shown verbatim.
 struct ListenReciterPicker: View {
-    @ObservedObject var model: ListenTabModel
+    @ObservedObject var model: QuranListenModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {

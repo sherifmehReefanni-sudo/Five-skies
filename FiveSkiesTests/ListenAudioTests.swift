@@ -44,7 +44,11 @@ final class ListenAudioTests: XCTestCase {
         let engine = SimulatedEngine(defaultDuration: 300)
         let system = RecordingListenSystem()
         let clock = AudioTestClock()
-        let player = ListenPlayer(engine: engine, system: system, now: { clock.now })
+        // Play modes and resume spots are saved, so every test starts from an empty suite.
+        let suiteName = "ListenAudioTests"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let player = ListenPlayer(engine: engine, system: system, defaults: defaults, now: { clock.now })
         return Harness(player: player, engine: engine, system: system, clock: clock)
     }
 
@@ -398,6 +402,34 @@ final class ListenAudioTests: XCTestCase {
         h.player.interruptionBegan()
         h.player.interruptionEnded(shouldResume: true)
         XCTAssertEqual(h.player.state, .paused)
+    }
+
+    @MainActor
+    func testLoopsSurahIsKeptForTheB1Screens() {
+        let h = makeHarness()
+        XCTAssertFalse(h.player.loopsSurah)
+        h.player.loopsSurah = true
+        XCTAssertEqual(h.player.modes.surahEnd, .repeatSurah(times: nil))
+        h.player.modes.surahEnd = .repeatSurah(times: 3)
+        XCTAssertTrue(h.player.loopsSurah)
+        h.player.loopsSurah = false
+        XCTAssertEqual(h.player.modes.surahEnd, .stop)
+
+        h.player.modes.surahEnd = .playNext
+        h.player.loopsSurah = false
+        XCTAssertEqual(h.player.modes.surahEnd, .playNext)
+    }
+
+    @MainActor
+    func testRetryingAFailedItemResumesAtTheSameSpot() {
+        let h = makeHarness()
+        h.player.play(item())
+        h.engine.tick(by: 40)
+        h.engine.simulateFailure()
+        h.player.play(item())
+        XCTAssertEqual(h.player.state, .playing)
+        XCTAssertEqual(h.engine.loadCount, 2)
+        XCTAssertEqual(h.player.position, 40, accuracy: 0.001)
     }
 
     @MainActor

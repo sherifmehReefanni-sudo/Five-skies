@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The bar pinned above the tab bar while something is loaded in the player.
-/// Tap it to open the full player. The credit line is always on it (D9).
+/// The bar pinned at the bottom of the Quran tab and the reader while something is loaded
+/// in the player. Tap it to open the full player. The credit line is always on it (D9).
 struct NowPlayingBar: View {
     @EnvironmentObject private var player: ListenPlayer
 
@@ -14,10 +14,15 @@ struct NowPlayingBar: View {
                 HStack(spacing: 12) {
                     ListenArtwork(isPlaying: player.state == .playing, size: 46)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(verbatim: item.chapterName)
-                            .font(.headline.weight(.bold))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
+                        HStack(spacing: 8) {
+                            Text(verbatim: item.chapterName)
+                                .font(.headline.weight(.bold))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                            if player.isWaitingForListener {
+                                ListenYourTurnBadge(identifier: "nowPlayingYourTurn")
+                            }
+                        }
                         Text(verbatim: item.credit)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(MorePalette.secondaryText)
@@ -29,7 +34,7 @@ struct NowPlayingBar: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(Text(verbatim: "Now playing, \(item.chapterName), \(item.credit)"))
+            .accessibilityLabel(Text(verbatim: accessibilityText))
             .accessibilityHint("Opens the player")
             .accessibilityIdentifier("nowPlayingOpen")
 
@@ -49,6 +54,15 @@ struct NowPlayingBar: View {
         .moreGlass(.dark, cornerRadius: 22)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("nowPlayingBar")
+    }
+
+    private var accessibilityText: String {
+        var parts = ["Now playing", item.chapterName]
+        if player.isWaitingForListener {
+            parts.append(ListenPlayModeText.yourTurn)
+        }
+        parts.append(item.credit)
+        return parts.joined(separator: ", ")
     }
 
     /// A thin gold line along the bottom edge showing how far into the surah playback is.

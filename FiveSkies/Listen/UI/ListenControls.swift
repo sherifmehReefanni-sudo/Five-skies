@@ -100,31 +100,67 @@ struct ListenArtwork: View {
     }
 }
 
-/// Three small bars on the surah that is playing. They move only while it plays and
-/// ambient motion is on; paused, they stand still.
-struct ListenPlayingIndicator: View {
-    let isPlaying: Bool
-
-    @Environment(\.ambientMotionEnabled) private var ambientMotion
-
-    private static let restingHeights: [Double] = [0.55, 0.95, 0.7]
+/// "Your turn" while Recite after me waits for the listener.
+struct ListenYourTurnBadge: View {
+    let identifier: String
 
     var body: some View {
-        let animates = ambientMotion && isPlaying
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !animates)) { context in
-            let time = context.date.timeIntervalSinceReferenceDate
-            HStack(alignment: .bottom, spacing: 3) {
-                ForEach(0..<3, id: \.self) { index in
-                    let height = animates
-                        ? 0.3 + 0.7 * MotionWave.breath(time, period: 0.9, offset: Double(index) * 0.33)
-                        : Self.restingHeights[index]
-                    Capsule()
-                        .fill(MorePalette.gold)
-                        .frame(width: 4, height: 18 * CGFloat(height))
-                }
+        Text(ListenPlayModeText.yourTurn)
+            .font(.caption.weight(.heavy))
+            .foregroundStyle(MorePalette.ink)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(MorePalette.goldGradient))
+            .fixedSize()
+            .accessibilityIdentifier(identifier)
+    }
+}
+
+/// Shown when playback paused because a prayer time came: "Paused for Asr. Resume?"
+struct ListenPrayerPauseBanner: View {
+    @EnvironmentObject private var player: ListenPlayer
+
+    let prayer: String
+    let identifier: String
+
+    @State private var taps = 0
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "moon.stars.fill")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(MorePalette.gold)
+                .accessibilityHidden(true)
+            Text(verbatim: ListenPlayModeText.prayerPause(prayer))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            Button {
+                taps += 1
+                player.resume()
+            } label: {
+                Text("Resume")
+                    .font(.subheadline.weight(.heavy))
+                    .foregroundStyle(MorePalette.ink)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(Capsule().fill(MorePalette.goldGradient))
             }
-            .frame(width: 20, height: 18, alignment: .bottom)
+            .buttonStyle(PressScaleButtonStyle())
+            .accessibilityHint("Plays the surah again from where it paused")
+            .accessibilityIdentifier("\(identifier)Resume")
         }
-        .accessibilityHidden(true)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(.ultraThickMaterial)
+                .environment(\.colorScheme, .dark)
+        )
+        .moreGlass(.dark, cornerRadius: 18)
+        .sensoryFeedback(.impact(weight: .medium), trigger: taps)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(identifier)
     }
 }

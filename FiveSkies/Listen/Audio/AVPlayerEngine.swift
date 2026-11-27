@@ -14,6 +14,12 @@ final class AVPlayerEngine: PlaybackEngine {
     private var endObserver: NSObjectProtocol?
     private var failObserver: NSObjectProtocol?
     private var fadeTask: Task<Void, Never>?
+    /// A seek asked for before the item was ready. Applied once it is ready.
+    private var pendingSeek: Double?
+    /// A seek under way. Until it lands, progress reports show its target, not the old time,
+    /// so the player's ayah tracking never sees a stale position.
+    private var seekTarget: Double?
+    private var seekGeneration = 0
 
     init() {
         player.actionAtItemEnd = .pause
@@ -37,6 +43,7 @@ final class AVPlayerEngine: PlaybackEngine {
     func load(url: URL, expectedDuration: Double?) {
         cancelFade()
         removeItemObservers()
+        clearSeeks()
         let item = AVPlayerItem(url: url)
         // Keeps the reciter's pitch when the speed changes.
         item.audioTimePitchAlgorithm = .spectral
@@ -83,10 +90,41 @@ final class AVPlayerEngine: PlaybackEngine {
     }
 
     func seek(to seconds: Double) {
-        guard player.currentItem != nil else { return }
-        let target = CMTime(seconds: max(0, seconds), preferredTimescale: 600)
-        player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
-        reportProgress(max(0, seconds))
+        guard let item = player.currentItem else { return }
+        let clamped = max(0, seconds)
+        guard item.status == .readyToPlay else {
+            // A resume spot or play from ayah, asked for while the file is still opening.
+            pendingSeek = clamped
+            reportProgress(clamped)
+            return
+        }
+        pendingSeek = nil
+        seekPlayer(to: clamped)
+        reportProgress(clamped)
+    }
+
+    private func seekPlayer(to seconds: Double) {
+        seekGeneration += 1
+        let generation = seekGeneration
+        seekTarget = seconds
+        let target = CMTime(seconds: seconds, preferredTimescale: 600)
+        player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+            let engine = self
+            Task { @MainActor in
+                engine?.seekLanded(generation: generation)
+            }
+        }
+    }
+
+    private func seekLanded(generation: Int) {
+        guard generation == seekGeneration else { return }
+        seekTarget = nil
+    }
+
+    private func clearSeeks() {
+        pendingSeek = nil
+        seekTarget = nil
+        seekGeneration += 1
     }
 
     func setRate(_ rate: Float) {
@@ -121,6 +159,7 @@ final class AVPlayerEngine: PlaybackEngine {
         cancelFade()
         player.pause()
         removeItemObservers()
+        clearSeeks()
         player.replaceCurrentItem(with: nil)
     }
 
@@ -134,8 +173,11 @@ final class AVPlayerEngine: PlaybackEngine {
     }
 
     private func reportProgress(_ seconds: Double) {
-        guard player.currentItem != nil, seconds.isFinite else { return }
-        onEvent?(.progress(position: max(0, seconds), duration: currentDuration()))
+        guard player.currentItem != nil else { return }
+        // Until a pending seek is applied, the clock still reads the start of the file.
+        let shown = pendingSeek ?? seekTarget ?? seconds
+        guard shown.isFinite else { return }
+        onEvent?(.progress(position: max(0, shown), duration: currentDuration()))
     }
 
     private func handleControlStatus(_ status: AVPlayer.TimeControlStatus) {
@@ -156,6 +198,10 @@ final class AVPlayerEngine: PlaybackEngine {
         guard player.currentItem != nil else { return }
         switch status {
         case .readyToPlay:
+            if let target = pendingSeek {
+                pendingSeek = nil
+                seekPlayer(to: target)
+            }
             let duration: Double? = (durationSeconds.isFinite && durationSeconds > 0) ? durationSeconds : nil
             onEvent?(.ready(duration: duration))
         case .failed:

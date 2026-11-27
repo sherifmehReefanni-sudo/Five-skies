@@ -2,7 +2,9 @@ import SwiftUI
 
 @main
 struct FiveSkiesApp: App {
-    @StateObject private var location = LocationProvider()
+    @StateObject private var location: LocationProvider
+    /// Tells the player when a prayer time arrives, for "Pause for prayer".
+    @StateObject private var arrivals: PrayerArrivalMonitor
     @StateObject private var settings: AppSettings
     @StateObject private var scheduler: NotificationScheduler
     /// Loads the bundled Quran text once, off the main thread, for the Quran tab.
@@ -11,7 +13,7 @@ struct FiveSkiesApp: App {
     @StateObject private var translations = TranslationStore.live()
     /// Decides when the signature shooting star plays on Today.
     @StateObject private var signatureStar = SignatureStarController()
-    /// The one recitation player, shared by the Listen tab and the lock screen controls.
+    /// The one recitation player, shared by the Quran tab and the lock screen controls.
     @StateObject private var listenPlayer = ListenPlayer.live()
     /// True until the first-run flow closes, so Today does not ask for location behind it.
     @State private var firstRunPending = OnboardingGate.live().shouldShow
@@ -24,6 +26,8 @@ struct FiveSkiesApp: App {
         let launch = LaunchOptions()
         let service = PrayerTimesService()
         let settings = AppSettings()
+        let location = LocationProvider()
+        _location = StateObject(wrappedValue: location)
         self.launch = launch
         self.service = service
         _settings = StateObject(wrappedValue: settings)
@@ -39,6 +43,13 @@ struct FiveSkiesApp: App {
         } else {
             clock = .system
         }
+        _arrivals = StateObject(wrappedValue: PrayerArrivalMonitor(
+            service: service,
+            settings: settings,
+            place: { location.coordinate.map { Place.device($0) } ?? Place.makkahFallback },
+            clock: clock,
+            launch: launch
+        ))
     }
 
     var body: some Scene {
@@ -58,11 +69,6 @@ struct FiveSkiesApp: App {
                     .tabArrival()
                     .legibleTabBar()
                     .tabItem { Label("Quran", systemImage: "book") }
-
-                ListenTabView()
-                    .tabArrival()
-                    .legibleTabBar()
-                    .tabItem { Label("Listen", systemImage: "headphones") }
 
                 QiblaTabView()
                     .tabArrival()
@@ -87,6 +93,7 @@ struct FiveSkiesApp: App {
                 service: service
             ))
             .modifier(SignatureStarLifecycle(controller: signatureStar))
+            .modifier(PrayerPauseWiring(arrivals: arrivals, player: listenPlayer, settings: settings, location: location))
             .modifier(MotionEnvironment(
                 isFixedPhase: launch.fixedPhase != nil,
                 forcesAnimation: MotionPolicy.forcesAnimation()
@@ -133,6 +140,33 @@ private struct NotificationRefresh: ViewModifier {
             preferences: settings.alertPreferences,
             now: clock.now()
         )
+    }
+}
+
+/// Connects prayer arrivals to the player and keeps the monitor's next wake-up current.
+private struct PrayerPauseWiring: ViewModifier {
+    @ObservedObject var arrivals: PrayerArrivalMonitor
+    let player: ListenPlayer
+    @ObservedObject var settings: AppSettings
+    @ObservedObject var location: LocationProvider
+
+    @Environment(\.scenePhase) private var scenePhase
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                arrivals.onArrival = { [weak player] arrival in
+                    player?.prayerTimeArrived(name: arrival.prayer.displayName)
+                }
+                arrivals.start()
+            }
+            .onChange(of: settings.snapshot) { _, _ in arrivals.refresh() }
+            .onChange(of: location.coordinate) { _, _ in arrivals.refresh() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    arrivals.refresh()
+                }
+            }
     }
 }
 
