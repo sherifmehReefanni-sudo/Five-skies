@@ -43,13 +43,16 @@ struct FiveSkiesApp: App {
         } else {
             clock = .system
         }
-        _arrivals = StateObject(wrappedValue: PrayerArrivalMonitor(
+        // Locals only: the autoclosure below must not capture self.
+        let monitorClock = clock
+        let monitor = PrayerArrivalMonitor(
             service: service,
             settings: settings,
             place: { location.coordinate.map { Place.device($0) } ?? Place.makkahFallback },
-            clock: clock,
+            clock: monitorClock,
             launch: launch
-        ))
+        )
+        _arrivals = StateObject(wrappedValue: monitor)
     }
 
     var body: some Scene {
