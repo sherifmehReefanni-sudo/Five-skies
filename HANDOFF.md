@@ -206,3 +206,19 @@ Passing CI (run for commit 9d7d171). Built: Listen folded into the Quran tab (re
 Choices made by the builder, for Fable to confirm: "Repeat this surah 1 time" means play it twice; recite after me waits for the ayah's length at normal speed.
 Not built yet: Timing builder (W2 splitter, W3 count check, W4 report) and the lead's highlight hook in SurahReaderView. They wait on `5_Probe_Prelive.bat` (in Reef's ClaudeWork\FiveSkies folder) to show which timings, word meanings and transliteration prelive offers. Without timings, the timing options are greyed out with a note.
 No TestFlight for C1 yet: Fable reviews the highlight hook and the W4 fallback number first.
+
+## Round C1 follow along: ready for FABLE review (Nov 27, 18:05 ET)
+
+Passing CI (commit e03a174). Built: `FiveSkies/Listen/Timing/` (RelayTimingProvider, memory only, last 10 surahs; AyahWordSplitter W2; TimingAlignment W3; FollowAlongDebugReport W4) and the lead's hook in `FiveSkies/Quran/SurahReaderView.swift` (`FollowAlongAyahText`, `FollowAlongTimingsWatcher`). Diff to review: `git show e03a174 -- FiveSkies/Quran/SurahReaderView.swift`.
+How the hook draws: the stored string (`SurahFollowAlong.text(forAyah:)`, equal to `Ayah.displayText`) becomes an AttributedString; the playing word's range gets a gold foreground colour; an ayah that lines up only at ayah level gets a faint gold card behind it. No string is built or joined, no animation, nothing announced to VoiceOver.
+Deviation from the plan, for Fable to accept or reject: timings are fetched from `chapter_recitations/{id}/{chapter}?segments=true` when a surah plays and kept in memory only, not through Content Sync. Content Sync `chapter_recitations:{id}` does answer (RESOURCE_CREATE), so it can be used for the 7 day save later.
+
+Prelive facts (probe through the relay, Nov 27 17:31 ET, CONFIRMED by counts): 4 reciters (ids 6, 7, 12, 173); every reciter has ayah and word timings, but only for surahs 1 and 2 (the other 112 answer 404 in prelive). Translations: 14, English only Abdel Haleem (85); Transliteration is translation id 57. Word by word through `verses/by_chapter` gives meaning for all words, transliteration and word audio for the 29 non-marker words of surah 1. Content Sync group `transliterations` does not exist (422); `word_by_word_translations:1` answers with nothing.
+
+W4 number (computed: QF timed word positions per ayah from the relay, numbers only, vs our W2 split of the bundled Tanzil text in Python, same rules as the Swift splitter; both give 77,433 words for the whole text):
+- reciter 6: 3 of 293 ayahs fall back (1.0%)
+- reciter 7: 6 of 293 (2.0%)
+- reciter 12: 2 of 293 (0.7%)
+- reciter 173: 1 of 293 (0.3%)
+Every fallback is in surah 2 (2:145, 2:181, 2:200, 2:212, 2:213, 2:214, 2:245, 2:249, 2:282); in each the timings name fewer words than our text has. Only surahs 1 and 2 could be checked in prelive, so the whole-Quran number waits for production access.
+TestFlight for C1 waits on Fable's review of the hook and this number, per the plan.
