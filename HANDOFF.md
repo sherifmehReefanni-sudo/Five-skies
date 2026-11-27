@@ -45,12 +45,12 @@ If you are Fable and the remaining work is plain building, say "This is build wo
 Done and passing on CI: Today (five skies), prayer times (adhan-swift), Qibla, alerts, Quran reader (Tanzil text, Amiri Quran font), search, bookmarks, tracker, Tasbih, Zakat, Hijri calendar, Ramadan, themes and wallpapers, share cards, mosques and halal (Apple Maps), memorize, widgets, tip jar, translations feature (built against the relay, tested only with fake data), relay (Cloudflare Worker, not deployed), TestFlight setup (never run), app icon.
 
 Waiting on Reef:
-- Choose the app's contact email (advice given: one new Gmail just for the app).
+- App contact email is fiveskiesapp@gmail.com (set Nov 27, 2026).
 - Apple steps in `docs/TESTFLIGHT.md`, then run the TestFlight workflow.
 - Sign up at dev-console.quran.foundation and community.islamic.network.
 - Run `2_Deploy_Relay.bat` once Quran Foundation credentials exist.
 
-Waiting on others: Darussalam reply (duas and prophet stories license, emailed Nov 26). Not yet posted: sunnah.com API request (needs the email), Islamic Network adhan permission post (needs an account).
+Waiting on others: Darussalam reply (duas and prophet stories license, emailed Nov 26); sunnah.com API request posted Nov 27 as issue #4540 on sunnah-com/api. Not yet posted: Islamic Network adhan permission post (needs Reef to sign up on the forum). Apple: App Group, both App IDs and the App Store Connect record "Five Skies" exist (team M9443JJCHM); APPLE_TEAM_ID secret is set; the other three secrets wait on Reef creating the API key.
 
 Next build work (Opus): add `FSRelayBaseURL` and `FSRelayAppKey` to the app's Info.plist via `project.yml` once the relay is up; fix the first TestFlight failures; Listen tab once credentials exist.
 
