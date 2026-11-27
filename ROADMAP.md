@@ -68,6 +68,10 @@ A8. Widgets
 - Surah background from Quran Foundation chapter info.
 - FABLE CHECKPOINT: request production access; choose the default translation (prelive offers only Abdel Haleem in English); read the audio terms before building downloads.
 
+## Phase B2: Listen, Learn and new Muslims (added Nov 27, 2026)
+
+Plan and build rounds are in `docs/LEARN_LISTEN_PLAN.md`: Quran and Listen merge with follow along and play modes, a Learn tab (guided lessons, common words, start here path, duas from the Quran), and a "New to Islam" mode.
+
 ## Phase C: waits on license replies (Fable checkpoint for each)
 
 - Duas and adhkar (Darussalam, emailed Nov 26).

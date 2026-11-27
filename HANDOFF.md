@@ -189,3 +189,13 @@ Reef confirmed recitation plays in the Listen tab on build 6. He wants:
 3. Rethink the tabs: the Quran tab (text with meaning underneath) becomes the Memorize and learning section, an education piece with a guided "instructor" walk-through, audio for enunciation, and help learning faster, for example the most frequent words of the Quran (Reef recalls about 400 words; UNVERIFIED). Listen keeps the text for following along.
 Fable checkpoints this touches: 1 (Quran text display and word splitting, highlight hook), 2 (source and license for word-by-word translation, transliteration and any frequent-word list or teaching content), 3 (plan and file ownership for a large feature, tab restructure).
 Reef's choice (15:53 ET): fold item 2 (play modes) into Fable's plan too, then hand the plan back to Opus to build. Opus's suggested modes: stop at end of surah, continue to next surah, repeat a surah 1, 3, 7 times or always, play a range of surahs. The player already has `loopsSurah`, `loopRange` and `sleepsAtEndOfSurah` in `FiveSkies/Listen/Audio/ListenPlayer.swift`.
+
+## Fable plan for Listen, Learn and new Muslims (Nov 27, 2026, 16:30 ET)
+
+Plan: `docs/LEARN_LISTEN_PLAN.md`. Read it before building. Short version:
+- Tabs become Today, Quran (reader plus player), Learn, Qibla, More. Listen folds into Quran.
+- Follow along rules W1 to W8 are Fable checkpoint 1 rules: text never altered, word splitting by character class, and any ayah whose word count differs from the timings falls back to ayah-level highlight. Fable reviews the highlight hook and the fallback count before TestFlight.
+- Play modes decided (section 3), including "Pause for prayer".
+- New goal from Reef: friendly for converts and reverts. Section 5 (N1 to N7 can be built now; how-to-pray guides wait on a text source and a scholar).
+- Dua handoff from Reef's study session (files `FIVE_SKIES_HANDOFF_Duas_Adhan_2026-11-27.md` and `five_skies_duas_2026-11-27.json` in his `ClaudeWork\FiveSkies` folder): reviewed in section 6. Do NOT commit or load the JSON. Only the five Quran duas ship now, by verse key. Hadith duas wait for sunnah.com. The two model-composed duas are dropped.
+Next: this is build work, switch to Opus for round C1. Round B2 in docs/PHASE_B_PLAN.md is replaced by C1 (timings) and the 7 day save moves to after C1.
