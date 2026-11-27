@@ -199,3 +199,10 @@ Plan: `docs/LEARN_LISTEN_PLAN.md`. Read it before building. Short version:
 - New goal from Reef: friendly for converts and reverts. Section 5 (N1 to N7 can be built now; how-to-pray guides wait on a text source and a scholar).
 - Dua handoff from Reef's study session (files `FIVE_SKIES_HANDOFF_Duas_Adhan_2026-11-27.md` and `five_skies_duas_2026-11-27.json` in his `ClaudeWork\FiveSkies` folder): reviewed in section 6. Do NOT commit or load the JSON. Only the five Quran duas ship now, by verse key. Hadith duas wait for sunnah.com. The two model-composed duas are dropped.
 Next: this is build work, switch to Opus for round C1. Round B2 in docs/PHASE_B_PLAN.md is replaced by C1 (timings) and the 7 day save moves to after C1.
+
+## Round C1 status (Nov 27, evening, Opus)
+
+Passing CI (run for commit 9d7d171). Built: Listen folded into the Quran tab (reciter row, play buttons `quranPlay-N`, play bar in list and reader, player sheet with play modes), ListenPlayer play modes (PlayModes saved under "listen.playModes", queue resolver, ayah repeat, recite after me, loop ayahs, pause for prayer, resume spots under "listen.resume", timing aware currentAyah and currentWord), `PrayerArrivalMonitor` wired at the app root. Tabs: Today, Quran, Qibla, More.
+Choices made by the builder, for Fable to confirm: "Repeat this surah 1 time" means play it twice; recite after me waits for the ayah's length at normal speed.
+Not built yet: Timing builder (W2 splitter, W3 count check, W4 report) and the lead's highlight hook in SurahReaderView. They wait on `5_Probe_Prelive.bat` (in Reef's ClaudeWork\FiveSkies folder) to show which timings, word meanings and transliteration prelive offers. Without timings, the timing options are greyed out with a note.
+No TestFlight for C1 yet: Fable reviews the highlight hook and the W4 fallback number first.
