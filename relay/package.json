@@ -1,0 +1,13 @@
+{
+  "name": "five-skies-relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Worker that relays Quran Foundation content to the Five Skies app without exposing the client secret.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

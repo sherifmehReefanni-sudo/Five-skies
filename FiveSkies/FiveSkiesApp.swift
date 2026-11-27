@@ -60,6 +60,10 @@ struct FiveSkiesApp: App {
                     .legibleTabBar()
                     .tabItem { Label("More", systemImage: "ellipsis.circle") }
             }
+            .modifier(WidgetGalleryOverride(
+                isActive: launch.fixedPhase != nil && WidgetGalleryLaunch.isRequested()
+            ))
+            .modifier(WidgetConfigSync(settings: settings, location: location, isEnabled: launch.requestsLocation))
             .modifier(NotificationRefresh(
                 settings: settings,
                 scheduler: scheduler,

@@ -20,6 +20,7 @@ struct SurahReaderView: View {
     @State private var showsActions = false
     @State private var showsTextSize = false
     @State private var shareItem: QuranShareItem?
+    @State private var shareCardAyah: Ayah?
     @State private var didInitialScroll = false
     @State private var visibleAyahs: Set<Int> = []
     @State private var saveTask: Task<Void, Never>?
@@ -139,6 +140,12 @@ struct SurahReaderView: View {
                     shareItem = QuranShareItem(text: text)
                 }
             }
+            Button("Share as image") {
+                // Let the dialog finish closing before the card sheet opens.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    shareCardAyah = ayah
+                }
+            }
             Button("Mark as last read") {
                 lastRead.update(ayah.ref)
             }
@@ -147,6 +154,9 @@ struct SurahReaderView: View {
         .sheet(item: $shareItem) { item in
             QuranActivityView(items: [item.text])
                 .presentationDetents([.medium, .large])
+        }
+        .sheet(item: $shareCardAyah) { ayah in
+            ShareCardView(ayah: ayah, sura: sura)
         }
     }
 

@@ -27,6 +27,8 @@ targets:
     dependencies:
       - package: Adhan
         product: Adhan
+      - target: FiveSkiesWidgets
+        embed: true
     info:
       path: SupportFiles/FiveSkies-Info.plist
       properties:
@@ -50,6 +52,44 @@ targets:
       configs:
         Debug:
           ENABLE_TESTABILITY: YES
+
+  FiveSkiesWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: FiveSkiesWidgets
+      - path: FiveSkies/WidgetSupport/SharedPrayerConfig.swift
+      - path: FiveSkies/WidgetSupport/PrayerWidgetTimeline.swift
+      - path: FiveSkies/WidgetSupport/WidgetViews.swift
+      - path: FiveSkies/Prayer/PrayerDay.swift
+      - path: FiveSkies/Prayer/PrayerTimesService.swift
+      - path: FiveSkies/Location/Coordinate.swift
+      - path: FiveSkies/Location/Place.swift
+      - path: FiveSkies/Settings/AppSettings.swift
+      - path: FiveSkies/Settings/SettingsAdhanMapping.swift
+      - path: FiveSkies/Today/SkyStyle.swift
+      - path: FiveSkies/Today/SkylineShapes.swift
+      - path: FiveSkies/Today/TileTimeFormat.swift
+      - path: FiveSkies/Today/Color+Hex.swift
+    dependencies:
+      - package: Adhan
+        product: Adhan
+    info:
+      path: SupportFiles/FiveSkiesWidgets-Info.plist
+      properties:
+        CFBundleDisplayName: Five Skies
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.fiveskies.ios.widgets
+        PRODUCT_NAME: FiveSkiesWidgets
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
 
   FiveSkiesTests:
     type: bundle.unit-test

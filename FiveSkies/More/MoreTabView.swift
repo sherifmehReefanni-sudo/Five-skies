@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The More tab: a grid of every tool in the app, plus the tip row.
 struct MoreTabView: View {
-    @State private var showsTipsAlert = false
+    @State private var showsTipJar = false
     /// Turns true on first appearance to play the tile entrance once.
     @State private var revealed = false
 
@@ -41,8 +41,8 @@ struct MoreTabView: View {
             }
             .navigationTitle("Everything")
             .toolbar(.hidden, for: .navigationBar)
-            .alert("Tips are coming soon.", isPresented: $showsTipsAlert) {
-                Button("OK", role: .cancel) {}
+            .sheet(isPresented: $showsTipJar) {
+                TipJarView()
             }
         }
     }
@@ -69,9 +69,19 @@ struct MoreTabView: View {
         }
     }
 
+    /// The row's button carries `supportRow`; the earlier `moreSupport` identifier stays on a
+    /// container around it.
     private var supportRow: some View {
+        VStack(spacing: 0) {
+            supportButton
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("moreSupport")
+    }
+
+    private var supportButton: some View {
         Button {
-            showsTipsAlert = true
+            showsTipJar = true
         } label: {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
@@ -101,7 +111,7 @@ struct MoreTabView: View {
             .shadow(color: MorePalette.gold.opacity(0.35), radius: 18, y: 14)
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier("moreSupport")
+        .accessibilityIdentifier("supportRow")
     }
 }
 
@@ -177,8 +187,10 @@ enum MoreTool: String, CaseIterable, Identifiable {
 
     var isAvailable: Bool {
         switch self {
-        case .tracker, .tasbih, .zakat, .hijriCalendar, .sources: return true
-        default: return false
+        case .tracker, .tasbih, .zakat, .hijriCalendar, .ramadan, .mosques, .halal, .memorize, .themes, .sources:
+            return true
+        case .hadith, .duas, .names, .stories:
+            return false
         }
     }
 
@@ -189,8 +201,13 @@ enum MoreTool: String, CaseIterable, Identifiable {
         case .tasbih: TasbihView()
         case .zakat: ZakatView()
         case .hijriCalendar: HijriCalendarView()
+        case .ramadan: RamadanView()
+        case .mosques: MosquesView()
+        case .halal: HalalFoodView()
+        case .memorize: MemorizeView()
+        case .themes: ThemesView()
         case .sources: SourcesView()
-        default: EmptyView()
+        case .hadith, .duas, .names, .stories: EmptyView()
         }
     }
 }

@@ -4,18 +4,41 @@ import SwiftUI
 /// With `showsCelestial` false the sun and moon are left out; stars, gradient, glow and skyline stay.
 /// Stars twinkle, the sun and moon breathe, haze drifts by day, and an occasional shooting star
 /// crosses the night, all only while ambient motion is on. With it off every element rests still.
+/// When the user picked a fixed theme (see SkyTheme), that theme's sky is drawn instead, with the
+/// stars and skyline but no sun or moon, whatever the prayer phase. Living sky is unchanged.
 struct SkyView: View {
     let phase: Prayer
     var showsCelestial = true
+    /// Draws this theme instead of the stored one, for previews and rendered images.
+    var themeOverride: SkyTheme?
+    /// False for previews inside a card, so the sky keeps to its own frame.
+    var fillsScreen = true
+
+    @AppStorage(SkyTheme.storageKey) private var storedTheme: SkyTheme = SkyTheme.defaultTheme
+
+    init(phase: Prayer, showsCelestial: Bool = true, themeOverride: SkyTheme? = nil, fillsScreen: Bool = true) {
+        self.phase = phase
+        self.showsCelestial = showsCelestial
+        self.themeOverride = themeOverride
+        self.fillsScreen = fillsScreen
+    }
 
     var body: some View {
-        ZStack {
-            SkyScene(phase: phase, style: SkyStyle.style(for: phase), showsCelestial: showsCelestial)
-                .id(phase)
-                .transition(.opacity)
+        let theme = themeOverride ?? SkyTheme.effective(stored: storedTheme, arguments: SkyTheme.processArguments)
+        return ZStack {
+            if let fixedStyle = SkyStyle.style(forTheme: theme) {
+                SkyScene(phase: .isha, style: fixedStyle, showsCelestial: false)
+                    .id("theme-\(theme.rawValue)")
+                    .transition(.opacity)
+            } else {
+                SkyScene(phase: phase, style: SkyStyle.style(for: phase), showsCelestial: showsCelestial)
+                    .id("phase-\(phase.rawValue)")
+                    .transition(.opacity)
+            }
         }
         .animation(.easeInOut(duration: 2.5), value: phase)
-        .ignoresSafeArea()
+        .animation(.easeInOut(duration: 0.8), value: theme)
+        .ignoresSafeArea(edges: fillsScreen ? Edge.Set.all : Edge.Set())
         .accessibilityHidden(true)
     }
 }

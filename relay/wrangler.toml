@@ -1,0 +1,25 @@
+# Five Skies relay (Cloudflare Worker)
+#
+# Secrets are NOT stored in this file. Set them once with:
+#   npx wrangler secret put QF_CLIENT_ID       # Quran Foundation client id
+#   npx wrangler secret put QF_CLIENT_SECRET   # Quran Foundation client secret
+#   npx wrangler secret put APP_KEY            # optional shared key the app sends as x-app-key
+
+name = "five-skies-relay"
+main = "src/index.js"
+compatibility_date = "2026-11-26"
+
+[vars]
+# "prelive" (default) or "production". Switches both QF base URLs.
+QF_ENV = "prelive"
+
+# Per-IP rate limit using the Workers Rate Limiting binding (needs Wrangler 4.36.0 or later).
+# Counters are per Cloudflare location. period must be 10 or 60 seconds.
+# namespace_id is any integer (as a string) unique within your Cloudflare account.
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "5151"
+
+  [ratelimits.simple]
+  limit = 120
+  period = 60
