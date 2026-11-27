@@ -142,7 +142,7 @@ Next: TestFlight for round 2 needs Reef's yes. Then Phase B planning is a Fable 
 
 ## For Fable next (Reef is switching models, Nov 27 afternoon)
 
-Phase A is built; nothing waits on Opus except TestFlight build 5 (needs Reef's yes).
+Phase A is built. TestFlight build 5 (round 2 plus iCloud) is not uploaded: Reef wants Fable to decide after its review whether to ship it.
 Fable decisions, in order:
 1. Review the school definitions in `FiveSkies/Prayer/DayDefinitions.swift` (after sunrise 15 min, before Dhuhr 5 min, before Maghrib 15 min, Duha between them, Isha ends at middle of night by default, `IshaEndRule`). Decide wording and defaults, and what a scholar must sign off before outside testers.
 2. Review the day card rules in `FiveSkies/DayCards/DayCardRules.swift`: fasting notes hidden in Ramadan, 1 Shawwal and 10 to 13 Dhul Hijjah; wording "Some choose to fast today", "Some fast on days 13, 14 and 15"; Arafah and Eid by Umm al-Qura date with the user's adjustment.
