@@ -27,7 +27,7 @@ private final class RecordingListenSystem: ListenSystemHooks {
     }
 }
 
-private final class ListenTestClock {
+private final class AudioTestClock {
     var now = Date(timeIntervalSince1970: 1_800_000_000)
 }
 
@@ -36,14 +36,14 @@ final class ListenAudioTests: XCTestCase {
         let player: ListenPlayer
         let engine: SimulatedEngine
         let system: RecordingListenSystem
-        let clock: ListenTestClock
+        let clock: AudioTestClock
     }
 
     @MainActor
     private func makeHarness() -> Harness {
         let engine = SimulatedEngine(defaultDuration: 300)
         let system = RecordingListenSystem()
-        let clock = ListenTestClock()
+        let clock = AudioTestClock()
         let player = ListenPlayer(engine: engine, system: system, now: { clock.now })
         return Harness(player: player, engine: engine, system: system, clock: clock)
     }
