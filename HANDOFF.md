@@ -98,3 +98,16 @@ First tasks for Opus, in order:
 2. Phase A rounds as listed there, one TestFlight build after each round.
 
 Repo visibility (decided by Reef, Nov 27): stay PUBLIC for now because builds are free. Flip to private before outside testers or any public mention of the app; he does that himself in Settings. Until then, keep anything he would not want read out of the repo: no secrets, no personal details, no device IDs.
+
+## Phase A0 status (Nov 27, 2026, Opus)
+
+Done and passing CI (runs 45999376982 and 46001723719, commits 3f143f7 and f4eb5c5):
+- Signature shooting star on Today (`FiveSkies/App/SignatureStar.swift`): plays on app open (and on return after 15+ minutes away), on prayer period change, and when a prayer is marked done. 8 second cooldown, never on tab changes, off with Reduce Motion and in fixed-phase screenshots. `-FSStarFrame <0..1>` freezes it for screenshots. It draws between the sky and the text.
+- Tab arrival (`FiveSkies/App/TabArrival.swift`): 0.3 s fade and settle when a tab returns. No blur on purpose (cost on long lists).
+- Sky: star dust, tinted stars with bloom and glints, faint galaxy band on deep night skies, bloom behind sun and moon, faint moon surface. `SkyLegibilityScrim` darkens the top of the Dhuhr and Asr skies on Today and Qibla only (white small text now about 6:1 or better), not wallpapers or share images.
+- Glass: lit top edges on Today tiles and every `moreGlass` card, card shadow on the background only, star dust on More skies. Haptics: success on marking a prayer, light tap on the settings button.
+- Rough spots fixed: Qibla "Finding your location" state (4 s, same as Today; `-FSQiblaLocating`), Listen preview screen (no scripture or reciter names), `widgets-large` screenshot, tracker legend says "Not marked".
+- Nothing under `FiveSkies/Quran/` was touched (Fable checkpoint 1).
+
+Not verified: the live star timing on a real phone (CI cannot time it; the frozen frames show the look). The star's middle passes behind the small "Now:" line; judge on device, the arc is `SignatureStarDrawing.point`.
+Not done: the TestFlight build for A0. Starting the workflow from here needs Reef's explicit yes (the tool blocked it as an upload).
