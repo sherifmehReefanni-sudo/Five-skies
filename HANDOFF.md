@@ -96,3 +96,5 @@ Checked by Reef on his iPhone (Nov 27, 07:15 ET):
 First tasks for Opus, in order:
 1. Phase A0 in ROADMAP.md (transitions and visual polish).
 2. Phase A rounds as listed there, one TestFlight build after each round.
+
+Repo visibility (decided by Reef, Nov 27): stay PUBLIC for now because builds are free. Flip to private before outside testers or any public mention of the app; he does that himself in Settings. Until then, keep anything he would not want read out of the repo: no secrets, no personal details, no device IDs.
