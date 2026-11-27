@@ -126,6 +126,8 @@ test("allow-list: permitted prefixes pass, others 404", async () => {
     "/content/api/v4/resources/translations",
     "/content/api/v4/resources/tafsirs",
     "/content/api/v4/resources/recitations",
+    "/content/api/v4/resources/chapter_reciters",
+    "/content/api/v4/resources/chapter_reciters?language=en",
     "/content/api/v4/resources/languages",
     "/content/api/v4/resources/sync?since=2026-01-01",
     "/content/api/v4/resources/snapshots/abc/files",
@@ -143,6 +145,7 @@ test("allow-list: permitted prefixes pass, others 404", async () => {
   const blocked = [
     "/content/api/v4/search?q=x",
     "/content/api/v4/resources/chapter_infos",
+    "/content/api/v4/resources/chapter_recitersX",
     "/content/api/v4/resources",
     "/content/api/v4/verses",
     "/content/api/v4/chaptersX",
@@ -335,7 +338,6 @@ test("non-cached endpoints carry Cache-Control: no-store; metadata gets 1 hour",
     "/content/api/v4/quran/verses/uthmani",
     "/content/api/v4/quran/translations/20?chapter_number=1",
     "/content/api/v4/recitations/7/by_chapter/1",
-    "/content/api/v4/chapter_recitations/7",
     "/content/api/v4/audio/reciters",
   ];
   for (const p of noStore) {
@@ -421,4 +423,94 @@ test("token: when the full scope list is refused, keeps only the scopes that are
   assert.equal(await tm.getToken(), "tok");
   assert.deepEqual(tm.grantedScopes, ["content.quran.read", "content.sync.read"]);
   assert.equal(bodies.at(-1), "grant_type=client_credentials&scope=content.quran.read%20content.sync.read");
+});
+
+test("reciter list and chapter audio lookups are allowed and cached for 1 hour", async () => {
+  const cached = [
+    "/content/api/v4/resources/chapter_reciters",
+    "/content/api/v4/resources/chapter_reciters?language=en",
+    "/content/api/v4/chapter_recitations/7",
+    "/content/api/v4/chapter_recitations/7/1",
+    "/content/api/v4/chapter_recitations/7/114?segments=true",
+  ];
+  for (const p of cached) {
+    const res = await call(p);
+    assert.equal(res.status, 200, p);
+    assert.equal(res.headers.get("cache-control"), "public, max-age=3600", p);
+    await assertClean(res);
+  }
+  assert.equal(qf.lastContent.url, "https://apis-prelive.quran.foundation/content/api/v4/chapter_recitations/7/114?segments=true");
+  // Odd shapes under chapter_recitations are still forwarded but not cached.
+  const res = await call("/content/api/v4/chapter_recitations/7/1/extra");
+  assert.equal(res.headers.get("cache-control"), "no-store");
+  // A failed reciter lookup is not cached.
+  qf.contentStatus = () => 503;
+  const err = await call("/content/api/v4/resources/chapter_reciters");
+  assert.equal(err.status, 503);
+  assert.equal(err.headers.get("cache-control"), "no-store");
+});
+
+test("upstream 429 passes through with Retry-After and is not cached", async () => {
+  const stub = globalThis.fetch;
+  let retryAfter = "30";
+  globalThis.fetch = async (input, init) => {
+    const url = typeof input === "string" ? input : input.url;
+    if (url.includes("/content/api/v4/")) {
+      qf.contentCalls++;
+      return new Response(JSON.stringify({ error: "too many" }), {
+        status: 429,
+        headers: { "content-type": "application/json", "retry-after": retryAfter, "set-cookie": "x=1" },
+      });
+    }
+    return stub(input, init);
+  };
+  const store = new Map();
+  globalThis.caches = {
+    default: {
+      async match(req) {
+        return store.get(req.url)?.clone();
+      },
+      async put(req, res) {
+        store.set(req.url, res);
+      },
+    },
+  };
+  try {
+    for (const p of ["/content/api/v4/resources/chapter_reciters", "/content/api/v4/chapter_recitations/7/1", "/content/api/v4/verses/by_key/1:1"]) {
+      const res = await call(p);
+      assert.equal(res.status, 429, p);
+      assert.equal(res.headers.get("retry-after"), "30", p);
+      assert.equal(res.headers.get("cache-control"), "no-store", p);
+      assert.equal(res.headers.get("set-cookie"), null, p);
+      assert.deepEqual(JSON.parse(await assertClean(res)), { error: "too many" });
+    }
+    assert.equal(store.size, 0);
+    // HTTP date form passes too.
+    retryAfter = "Wed, 21 Oct 2026 07:28:00 GMT";
+    let res = await call("/content/api/v4/chapters");
+    assert.equal(res.headers.get("retry-after"), retryAfter);
+    // HEAD keeps the header.
+    res = await call("/content/api/v4/chapters", { method: "HEAD" });
+    assert.equal(res.status, 429);
+    assert.equal(res.headers.get("retry-after"), retryAfter);
+    // Junk values are dropped rather than forwarded.
+    retryAfter = "30; evil=<script>";
+    res = await call("/content/api/v4/chapters");
+    assert.equal(res.status, 429);
+    assert.equal(res.headers.get("retry-after"), null);
+    // A 429 does not trigger a token refresh or a retry.
+    assert.equal(qf.tokenCalls, 1);
+  } finally {
+    delete globalThis.caches;
+  }
+});
+
+test("relay rate limit 429 carries Retry-After", async () => {
+  const env = baseEnv({ RATE_LIMITER: { async limit() { return { success: false }; } } });
+  const res = await call("/content/api/v4/resources/chapter_reciters", { env });
+  assert.equal(res.status, 429);
+  assert.equal(res.headers.get("retry-after"), "60");
+  assert.equal(res.headers.get("cache-control"), "no-store");
+  assert.deepEqual(await res.json(), { error: "rate_limited" });
+  assert.equal(qf.contentCalls + qf.tokenCalls, 0);
 });

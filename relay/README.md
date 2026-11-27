@@ -19,7 +19,7 @@ Content Sync answers contain relative paths that start with `/api/v4/...`. The a
 ## What it allows
 
 - Only `GET` and `HEAD`. Anything else gets 405.
-- Only paths under `/content/api/v4/` that start with one of these (the `ALLOWED_PREFIXES` list in `src/index.js`): `chapters`, `resources/translations`, `resources/tafsirs`, `resources/recitations`, `resources/languages`, `resources/sync`, `resources/snapshots`, `verses/`, `quran/`, `chapter_recitations/`, `recitations/`, `audio/`. Everything else gets 404.
+- Only paths under `/content/api/v4/` that start with one of these (the `ALLOWED_PREFIXES` list in `src/index.js`): `chapters`, `resources/translations`, `resources/tafsirs`, `resources/recitations`, `resources/chapter_reciters`, `resources/languages`, `resources/sync`, `resources/snapshots`, `verses/`, `quran/`, `chapter_recitations/`, `recitations/`, `audio/`. Everything else gets 404.
 - Paths with `..`, backslashes, double slashes, encoded tricks or full URLs inside them get 404.
 - The app's cookies and authorization headers are never sent to QF. QF's cookies are never sent back to the app.
 
@@ -27,7 +27,7 @@ Content Sync answers contain relative paths that start with `/api/v4/...`. The a
 
 - No Quran content. Verses, translations text, tafsir text, audio, Content Sync and snapshot answers all pass straight through with `Cache-Control: no-store`. QF's terms limit stored content to one week and ask for Content Sync for offline copies, so offline copies are the app's job, done through Content Sync.
 - No personal data. It writes no logs about users and never logs IP addresses. The visitor's IP is used only as the counter key for Cloudflare's rate limiter.
-- Small metadata lists (`chapters`, `resources/translations`, `resources/tafsirs`, `resources/recitations`, `resources/languages`, plus their `/info` pages) may be kept in Cloudflare's edge cache for 1 hour to save calls. Only successful answers are cached.
+- Small metadata lists (`chapters`, `resources/translations`, `resources/tafsirs`, `resources/recitations`, `resources/chapter_reciters`, `resources/languages`, plus their `/info` pages) may be kept in Cloudflare's edge cache for 1 hour to save calls. So may audio lookups (`chapter_recitations/{reciter}` and `chapter_recitations/{reciter}/{chapter}`): these hold audio file links (and timings if asked), not audio. Audio files themselves never pass through the relay; the app plays them from QF's hosts. Only successful answers are cached.
 - The QF access token lives only in the Worker's memory and is renewed when less than 60 seconds remain. It is never put in any response, header or log line.
 
 ## The three secrets
@@ -82,4 +82,5 @@ npm test
 - The token cache is per Worker instance. Several instances around the world will each get their own token. That is normal and fine.
 - The edge cache only works when the Worker runs on a custom domain. On a plain `workers.dev` address the cache calls may do nothing, which is safe but means no savings.
 - The relay forwards QF's status and body as they are. If QF is down, the app sees QF's error (or a 502 from the relay).
+- When QF says 429 (too many requests), the app gets the 429 with QF's `Retry-After` header kept (seconds or a date; odd values are dropped). The relay's own rate limit also answers 429 with `Retry-After: 60`. The app should wait that long before trying again. 429s are never cached.
 - Query strings that contain a full URL (like `?next=https://...`) are refused, to be safe.

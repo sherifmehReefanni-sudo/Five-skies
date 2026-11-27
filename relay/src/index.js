@@ -25,6 +25,7 @@ export const ALLOWED_PREFIXES = [
   "resources/translations",
   "resources/tafsirs",
   "resources/recitations",
+  "resources/chapter_reciters",
   "resources/languages",
   "resources/sync",
   "resources/snapshots",
@@ -41,10 +42,17 @@ const CACHEABLE_PATTERNS = [
   /^chapters$/,
   /^chapters\/\d{1,3}$/,
   /^chapters\/\d{1,3}\/info$/,
-  /^resources\/(translations|tafsirs|recitations|languages)$/,
+  /^resources\/(translations|tafsirs|recitations|chapter_reciters|languages)$/,
   /^resources\/(translations|tafsirs|recitations)\/\d+\/info$/,
+  // Audio file lookups: URLs (and timings, if asked) for one reciter, not the audio itself.
+  /^chapter_recitations\/\d+$/,
+  /^chapter_recitations\/\d+\/\d{1,3}$/,
 ];
 const CACHE_SECONDS = 3600;
+
+// Seconds the app is told to wait after the relay's own rate limit says no.
+// Matches the 60 second period in wrangler.toml.
+const RATE_LIMIT_RETRY_SECONDS = 60;
 
 // One token manager per isolate, rebuilt only if the config changes.
 let tokenManager = null;
@@ -170,8 +178,17 @@ function callUpstream(method, upstreamUrl, token, clientId) {
   });
 }
 
-// Build the response for the app. Only the status, body and content type
-// come from upstream. No upstream headers (cookies etc.) are copied.
+// Retry-After from QF, kept only if it is plain seconds or an HTTP date.
+function safeRetryAfter(value) {
+  if (typeof value !== "string") return null;
+  const v = value.trim();
+  if (/^\d{1,6}$/.test(v)) return v;
+  if (v.length <= 40 && /^[A-Za-z0-9 ,:]+$/.test(v) && !Number.isNaN(Date.parse(v))) return v;
+  return null;
+}
+
+// Build the response for the app. Only the status, body, content type and
+// Retry-After come from upstream. No other upstream headers (cookies etc.) are copied.
 function relayResponse(upstream, method, cacheControl) {
   const headers = {
     "Cache-Control": cacheControl,
@@ -179,6 +196,8 @@ function relayResponse(upstream, method, cacheControl) {
   };
   const type = upstream.headers.get("content-type");
   if (type) headers["Content-Type"] = type;
+  const retryAfter = safeRetryAfter(upstream.headers.get("retry-after"));
+  if (retryAfter) headers["Retry-After"] = retryAfter;
   const body = method === "HEAD" ? null : upstream.body;
   return new Response(body, { status: upstream.status, headers });
 }
@@ -251,7 +270,7 @@ export default {
     if (env.RATE_LIMITER && typeof env.RATE_LIMITER.limit === "function") {
       const ip = request.headers.get("cf-connecting-ip") || "unknown";
       const { success } = await env.RATE_LIMITER.limit({ key: ip });
-      if (!success) return json(429, { error: "rate_limited" });
+      if (!success) return json(429, { error: "rate_limited" }, { "Retry-After": String(RATE_LIMIT_RETRY_SECONDS) });
     }
 
     if (request.method !== "GET" && request.method !== "HEAD") {
