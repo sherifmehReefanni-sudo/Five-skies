@@ -134,8 +134,18 @@ Passing CI (run 46039149151, commit 0b67598; day card layout fix in 5910b2f).
 - A4 Goals: `FiveSkies/Goals/` (GoalsView, GoalCreatorSheet, GoalProgress, GoalStore, DhikrLogStore). Tasbih shows a daily total, optional goal and a 7-day chart. "Fajr this month" counts days Fajr is marked (no on-time flag exists).
 - A5 Day cards: `FiveSkies/DayCards/`, on Today above the tracker chips. FABLE CHECK: the builder hides fasting notes during Ramadan, on 1 Shawwal and on 10 to 13 Dhul Hijjah; Fable should confirm the rule and the wording ("Some choose to fast today").
 - A6 Settings and backup: `FiveSkies/Trust/` (More tile "Settings and backup"). Greeting line on Today (name stays on device), backup to iCloud key-value storage under "fiveSkies.backup", feedback mail, mission page, what's new sheet at the app root. Restore asks the user to reopen the app.
-  iCloud sync needs Reef: enable iCloud (no CloudKit) on App ID app.fiveskies.ios, then add `com.apple.developer.ubiquity-kvstore-identifier` = `$(TeamIdentifierPrefix)$(CFBundleIdentifier)` to FiveSkies/WidgetSupport/FiveSkies.entitlements. Until then backup stays on the phone.
+  iCloud sync: DONE Nov 27, 13:25 ET with Reef's OK. Workflow `enable-icloud.yml` (tools/asc_enable_icloud.py) turned on ICLOUD for app.fiveskies.ios through the App Store Connect API (capabilities now APP_GROUPS, ICLOUD, IN_APP_PURCHASE), and the key-value entitlement is in FiveSkies/WidgetSupport/FiveSkies.entitlements. A signed Release archive in that run carried `com.apple.developer.ubiquity-kvstore-identifier`. Sync itself is not yet tested on a phone.
 - A6 Timetable: `FiveSkies/Timetable/` (More tile "Timetable"), month or year, PDF export through the share sheet.
 - A7 First run: `FiveSkies/Onboarding/`, gated by "onboarding.completed"; Today waits for it before asking for location. `-FSShowOnboarding` for screenshots.
 - A8 Widgets: start and until times, live countdown, new "Today's times" Lock Screen widget. Rows now run Fajr to Fajr (after Isha they show the same day with Isha current).
 Next: TestFlight for round 2 needs Reef's yes. Then Phase B planning is a Fable checkpoint (production access, default translation, audio terms).
+
+## For Fable next (Reef is switching models, Nov 27 afternoon)
+
+Phase A is built; nothing waits on Opus except TestFlight build 5 (needs Reef's yes).
+Fable decisions, in order:
+1. Review the school definitions in `FiveSkies/Prayer/DayDefinitions.swift` (after sunrise 15 min, before Dhuhr 5 min, before Maghrib 15 min, Duha between them, Isha ends at middle of night by default, `IshaEndRule`). Decide wording and defaults, and what a scholar must sign off before outside testers.
+2. Review the day card rules in `FiveSkies/DayCards/DayCardRules.swift`: fasting notes hidden in Ramadan, 1 Shawwal and 10 to 13 Dhul Hijjah; wording "Some choose to fast today", "Some fast on days 13, 14 and 15"; Arafah and Eid by Umm al-Qura date with the user's adjustment.
+3. City name on the day view (`PlaceNameProvider.lookupsEnabled` is false): needs a privacy wording decision with Reef.
+4. Plan Phase B (ROADMAP): Quran Foundation production access, default translation, audio terms, Listen tab file ownership for Opus.
+Open replies: Darussalam (no reply as of Nov 27 12:30), sunnah.com issue #4540 and Islamic Network d/365 (not checked this session; GitHub blocks that repo here and the forum fetch needs approval).
