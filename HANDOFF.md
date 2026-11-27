@@ -68,3 +68,27 @@ Blocked content with no acceptable source yet: prophet stories, Makkah and Madin
 - Posted: sunnah.com issue #4540; Islamic Network adhan request https://community.islamic.network/d/365 (account fiveskies). Darussalam email sent Nov 26. All three await replies.
 - QF scopes include content.hadith.read, so QF may be a second hadith source. Not checked.
 - Nov 27, 06:15 ET: TestFlight run 45988541262 SUCCEEDED after registering Reef's iPhone as a device. Build 0.1.0 (2) uploaded with Xcode 26.3; archive and export both passed. Internal group "Owner" created with automatic distribution; Reef (sherif@steadypathcareers.com) invited. Next: Reef installs via the TestFlight app and reports what he sees on a real phone. To ship another build: Actions > TestFlight > Run workflow.
+
+## Start here in a new chat (added Nov 27, 2026, 07:15 ET)
+
+You are picking this up in a fresh chat with no memory of the earlier one. Read this file fully, then ROADMAP.md. Reef wants Opus to build and Fable to plan and review; the checkpoints near the top of this file say when to tell him to switch.
+
+Working facts you will need:
+- Repo: `sherifmehReefanni-sudo/Five-skies` (GitHub redirects the old lowercase name). Clone it, work on `main`, push with `git -c push.negotiate=true push origin main`. The repo is still PUBLIC; Reef wants it private later and must flip that himself (settings writes are blocked for us).
+- Simulator build and tests run on every push (about 10 minutes, sometimes a queue). Watch with `gh run watch`, then `git fetch origin ci-screenshots` and LOOK at the screenshots before saying anything is done. Add `[skip ci]` for doc-only commits.
+- TestFlight: `gh workflow run testflight.yml -R sherifmehReefanni-sudo/Five-skies --ref main`. It takes about 12 minutes, uploads the build, and Reef gets it automatically through the internal group "Owner". Build numbers come from the run number. The last good run was 45988541262 (build 0.1.0 (2)).
+- You cannot read or set GitHub secrets or repo settings through the API here. All needed secrets already exist: APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8_BASE64, FS_RELAY_APP_KEY.
+- Relay: https://five-skies-relay.sherif-d13.workers.dev (health at /health). Source in `relay/`. To redeploy, Reef double-clicks `2_Deploy_Relay.bat` in `C:\Users\sheri\ClaudeWork\FiveSkies` on his PC and answers N to the credentials question. Keep the copy of `relay/src` in that folder in step with the repo before asking him to run it.
+- Parallel workers: give each one strict file ownership, tell them not to run git, have each `touch /tmp/<name>.done` as its last action, then do one commit and one push yourself.
+- Reef reads on his phone. Keep replies short, bottom line first, plain words, no em dashes. He handles keys and passwords himself. Ask before sending, posting, buying, deleting or changing account settings.
+
+Reef's feedback after installing build 0.1.0 (2) on his iPhone (Nov 27):
+- "Looks really well" and "operates really well". He likes every idea in ROADMAP.md.
+- He wants creative screen transitions, for example a star crossing the sky when moving between screens.
+- He wants the look and graphics sharpened further so it feels elite.
+
+Not yet checked on the phone (ask him, do not assume): prayer times against his mosque or another app, Qibla direction, whether an alert fires, and downloading the Abdel Haleem translation in the reader (Aa, Translation).
+
+First tasks for Opus, in order:
+1. Phase A0 in ROADMAP.md (transitions and visual polish).
+2. Phase A rounds as listed there, one TestFlight build after each round.

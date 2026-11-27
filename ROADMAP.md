@@ -11,6 +11,17 @@ Design rule: borrow features, never layouts, icons or wording. Pillars already h
 
 Tone rule: encouragement, never shame. No red "missed" totals, no counting days before the user started, no leaderboards.
 
+## Phase A0: transitions and visual polish (Opus, first)
+
+Reef asked for creative screen transitions (his example: a star crossing the sky) and a sharper, more elite look.
+
+- One signature moment, used sparingly: a shooting star that crosses the sky. Use it when the app opens, when the prayer period changes, and when a prayer is marked done. Do NOT play it on every tab change; a flourish seen fifty times a day becomes an annoyance.
+- Tab and screen changes: a quick sky cross-fade or gentle parallax of the skyline, under 0.35 seconds, never blocking touches.
+- Everything goes through MotionPolicy: off with Reduce Motion, off in fixed-phase screenshot mode unless -FSAnimate.
+- Polish pass: consistent spacing and type scale, richer sky gradients and star fields, soft glow on the sun and moon, glass cards with consistent corner radius and contrast, haptics on key taps, and check text contrast on all five skies.
+- Known rough spots: widget gallery large widget is cut off in its screenshot; the Qibla tab has no "Locating" state; the Listen tab still says "Coming soon".
+- Send Reef before and after contact sheets, then one TestFlight build.
+
 ## Phase A: build now (Opus). Calculation and on-device only, no licenses needed
 
 A1. Day view
@@ -81,6 +92,7 @@ Leaderboards for worship, paywalls, ads or cross-promotion, long onboarding funn
 
 ## Order of work
 
-1. Reef tests TestFlight build 0.1.0 (2) on his phone and reports. Fix what is broken first.
+1. Done: Reef installed build 0.1.0 (2) and likes it. Still ask him to check prayer times, Qibla, an alert and a translation download.
+1b. Phase A0.
 2. Phase A in two rounds: A1, A2, A3 then A4 to A8. One TestFlight build after each round.
 3. Phase B once production access is requested.
