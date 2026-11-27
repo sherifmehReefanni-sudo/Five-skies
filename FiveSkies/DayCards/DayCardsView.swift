@@ -50,14 +50,12 @@ struct DayCardsView: View {
                     cardView(card, dayKey: dayKey)
                 }
             }
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(cards) { card in
-                        cardView(card, dayKey: dayKey)
-                    }
+            // Too wide side by side: stack them, each full width, so no text is cut off.
+            VStack(spacing: 8) {
+                ForEach(cards) { card in
+                    cardView(card, dayKey: dayKey)
                 }
             }
-            .fixedSize(horizontal: false, vertical: true)
         }
         .dynamicTypeSize(...DynamicTypeSize.xLarge)
     }
@@ -84,6 +82,7 @@ struct DayCardsView: View {
             .minimumScaleFactor(0.85)
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("dayCard-\(card.id)")
+            Spacer(minLength: 0)
             Button {
                 dismiss(card, dayKey: dayKey)
             } label: {
