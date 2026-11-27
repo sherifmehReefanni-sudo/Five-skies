@@ -11,6 +11,8 @@ struct FiveSkiesApp: App {
     @StateObject private var translations = TranslationStore.live()
     /// Decides when the signature shooting star plays on Today.
     @StateObject private var signatureStar = SignatureStarController()
+    /// The one recitation player, shared by the Listen tab and the lock screen controls.
+    @StateObject private var listenPlayer = ListenPlayer.live()
     /// True until the first-run flow closes, so Today does not ask for location behind it.
     @State private var firstRunPending = OnboardingGate.live().shouldShow
 
@@ -57,7 +59,7 @@ struct FiveSkiesApp: App {
                     .legibleTabBar()
                     .tabItem { Label("Quran", systemImage: "book") }
 
-                ListenPreviewView()
+                ListenTabView()
                     .tabArrival()
                     .legibleTabBar()
                     .tabItem { Label("Listen", systemImage: "headphones") }
@@ -97,6 +99,7 @@ struct FiveSkiesApp: App {
             .environmentObject(quran)
             .environmentObject(translations)
             .environmentObject(signatureStar)
+            .environmentObject(listenPlayer)
         }
     }
 }
