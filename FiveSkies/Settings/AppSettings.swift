@@ -83,10 +83,52 @@ enum IshaEndRule: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// What the night alarm is set relative to.
+enum NightAlarmAnchor: String, Codable, CaseIterable, Identifiable {
+    case lastThirdOfNight
+    case fajr
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .lastThirdOfNight: return "Last third of the night"
+        case .fajr: return "Fajr"
+        }
+    }
+}
+
+/// The night alarm settings as a plain value.
+/// `weekdays` uses Calendar weekday numbers (1 is Sunday, 7 is Saturday) and names
+/// the days on which the alarm rings, like the Clock app.
+struct NightAlarmSettings: Equatable {
+    var isEnabled: Bool = false
+    var anchor: NightAlarmAnchor = .lastThirdOfNight
+    var offsetMinutes: Int = 0
+    var weekdays: Set<Int> = NightAlarmSettings.everyDay
+
+    static let everyDay: Set<Int> = Set(1...7)
+    /// -60 to +60 minutes in steps of 5.
+    static let offsetOptions: [Int] = Array(stride(from: -60, through: 60, by: 5))
+
+    /// "15 minutes before", "At the time", "10 minutes after".
+    static func offsetLabel(_ minutes: Int) -> String {
+        if minutes == 0 { return "At the time" }
+        let size = abs(minutes)
+        let unit = size == 1 ? "minute" : "minutes"
+        return minutes < 0 ? "\(size) \(unit) before" : "\(size) \(unit) after"
+    }
+}
+
 /// The alert part of the settings as a plain value, used to build the notification plan.
 struct AlertPreferences: Equatable {
     var modes: [Prayer: AlertMode]
     var reminderMinutesBefore: Int
+    /// Minutes before a prayer's window ends for the "ends soon" reminder. 0 means off.
+    var endReminderMinutes: Int = 0
+    /// Where the Isha window ends, for the "ends soon" reminder.
+    var ishaEnd: IshaEndRule = AppSettings.defaultIshaEnd
+    var nightAlarm: NightAlarmSettings = NightAlarmSettings()
 
     func mode(for prayer: Prayer) -> AlertMode {
         modes[prayer] ?? AppSettings.defaultAlertMode
@@ -95,6 +137,12 @@ struct AlertPreferences: Equatable {
     /// Whether any prayer would produce a notification.
     var wantsAnyAlert: Bool {
         Prayer.allCases.contains { mode(for: $0) != .off }
+    }
+
+    /// Whether anything in these preferences needs notification permission.
+    /// The night alarm counts because notifications are its fallback before iOS 26.
+    var needsNotificationPermission: Bool {
+        wantsAnyAlert || nightAlarm.isEnabled
     }
 }
 
@@ -117,6 +165,8 @@ final class AppSettings: ObservableObject {
     static let defaultIshaEnd = IshaEndRule.middleOfNight
     /// Days added to the calculated Hijri date, to match local moon sighting.
     static let hijriAdjustmentRange = -2...2
+    /// Minutes before a prayer's window ends for the optional reminder. 0 means off.
+    static let endReminderOptions = [0, 10, 15, 20, 30]
 
     enum Keys {
         static let calculationMethod = "settings.calculationMethod"
@@ -124,6 +174,11 @@ final class AppSettings: ObservableObject {
         static let reminderMinutesBefore = "settings.reminderMinutesBefore"
         static let ishaEnd = "settings.ishaEnd"
         static let hijriAdjustment = "settings.hijriAdjustment"
+        static let endReminderMinutes = "settings.endReminderMinutes"
+        static let nightAlarmEnabled = "settings.nightAlarm.enabled"
+        static let nightAlarmAnchor = "settings.nightAlarm.anchor"
+        static let nightAlarmOffset = "settings.nightAlarm.offsetMinutes"
+        static let nightAlarmWeekdays = "settings.nightAlarm.weekdays"
         static func alertMode(for prayer: Prayer) -> String {
             "settings.alertMode.\(prayer.rawValue)"
         }
@@ -158,6 +213,29 @@ final class AppSettings: ObservableObject {
             }
             defaults.set(hijriAdjustment, forKey: Keys.hijriAdjustment)
         }
+    }
+
+    @Published var endReminderMinutes: Int {
+        didSet { defaults.set(endReminderMinutes, forKey: Keys.endReminderMinutes) }
+    }
+
+    /// Off by default.
+    @Published var nightAlarmEnabled: Bool {
+        didSet { defaults.set(nightAlarmEnabled, forKey: Keys.nightAlarmEnabled) }
+    }
+
+    @Published var nightAlarmAnchor: NightAlarmAnchor {
+        didSet { defaults.set(nightAlarmAnchor.rawValue, forKey: Keys.nightAlarmAnchor) }
+    }
+
+    /// Minutes from the anchor, negative for before. One of `NightAlarmSettings.offsetOptions`.
+    @Published var nightAlarmOffsetMinutes: Int {
+        didSet { defaults.set(nightAlarmOffsetMinutes, forKey: Keys.nightAlarmOffset) }
+    }
+
+    /// Calendar weekday numbers (1 is Sunday) on which the night alarm rings.
+    @Published var nightAlarmWeekdays: Set<Int> {
+        didSet { defaults.set(nightAlarmWeekdays.sorted(), forKey: Keys.nightAlarmWeekdays) }
     }
 
     private let defaults: UserDefaults
@@ -196,6 +274,33 @@ final class AppSettings: ObservableObject {
         }
         _ishaEnd = Published(initialValue: ishaEnd)
         _hijriAdjustment = Published(initialValue: adjustment)
+
+        var endMinutes = 0
+        if let stored = defaults.object(forKey: Keys.endReminderMinutes) as? Int,
+           Self.endReminderOptions.contains(stored) {
+            endMinutes = stored
+        }
+        let night = NightAlarmSettings()
+        let nightEnabled = defaults.object(forKey: Keys.nightAlarmEnabled) as? Bool ?? night.isEnabled
+        let anchor = defaults.string(forKey: Keys.nightAlarmAnchor)
+            .flatMap(NightAlarmAnchor.init(rawValue:)) ?? night.anchor
+        var offset = night.offsetMinutes
+        if let stored = defaults.object(forKey: Keys.nightAlarmOffset) as? Int,
+           NightAlarmSettings.offsetOptions.contains(stored) {
+            offset = stored
+        }
+        var weekdays = night.weekdays
+        if let stored = defaults.array(forKey: Keys.nightAlarmWeekdays) as? [Int] {
+            let valid = Set(stored.filter { NightAlarmSettings.everyDay.contains($0) })
+            if !valid.isEmpty {
+                weekdays = valid
+            }
+        }
+        _endReminderMinutes = Published(initialValue: endMinutes)
+        _nightAlarmEnabled = Published(initialValue: nightEnabled)
+        _nightAlarmAnchor = Published(initialValue: anchor)
+        _nightAlarmOffsetMinutes = Published(initialValue: offset)
+        _nightAlarmWeekdays = Published(initialValue: weekdays)
     }
 
     func alertMode(for prayer: Prayer) -> AlertMode {
@@ -207,8 +312,23 @@ final class AppSettings: ObservableObject {
         defaults.set(mode.rawValue, forKey: Keys.alertMode(for: prayer))
     }
 
+    var nightAlarm: NightAlarmSettings {
+        NightAlarmSettings(
+            isEnabled: nightAlarmEnabled,
+            anchor: nightAlarmAnchor,
+            offsetMinutes: nightAlarmOffsetMinutes,
+            weekdays: nightAlarmWeekdays
+        )
+    }
+
     var alertPreferences: AlertPreferences {
-        AlertPreferences(modes: alertModes, reminderMinutesBefore: reminderMinutesBefore)
+        AlertPreferences(
+            modes: alertModes,
+            reminderMinutesBefore: reminderMinutesBefore,
+            endReminderMinutes: endReminderMinutes,
+            ishaEnd: ishaEnd,
+            nightAlarm: nightAlarm
+        )
     }
 
     var snapshot: SettingsSnapshot {

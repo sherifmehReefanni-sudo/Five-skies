@@ -32,6 +32,11 @@ struct PrayedStore {
         save(all)
     }
 
+    /// Every stored day, keyed by "yyyy-MM-dd". Days with nothing marked are not stored.
+    func allDays() -> [String: Set<Prayer>] {
+        load()
+    }
+
     func dayKey(for date: Date) -> String {
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04ld-%02ld-%02ld", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)

@@ -20,6 +20,8 @@ final class MoreUITests: XCTestCase {
         attachScreenshot(named: "more")
 
         openTool(app, tile: "moreTile-tracker", title: "trackerTitle", screenshot: "tracker")
+        scrollToTrackerHistory(app)
+        attachScreenshot(named: "tracker-history")
         goBack(app)
 
         openTool(app, tile: "moreTile-tasbih", title: "tasbihTitle", screenshot: nil)
@@ -54,6 +56,22 @@ final class MoreUITests: XCTestCase {
         if let screenshot {
             attachScreenshot(named: screenshot)
         }
+    }
+
+    /// Swipes the tracker up until the month history is on screen, then once more so the
+    /// whole month grid shows.
+    @MainActor
+    private func scrollToTrackerHistory(_ app: XCUIApplication) {
+        let monthTitle = app.descendants(matching: .any)["historyMonthTitle"]
+        XCTAssertTrue(monthTitle.waitForExistence(timeout: 10), "Tracker month history did not appear")
+        var swipes = 0
+        while !monthTitle.isHittable && swipes < 8 {
+            app.swipeUp()
+            swipes += 1
+        }
+        XCTAssertTrue(monthTitle.isHittable, "Tracker month history is not on screen")
+        app.swipeUp()
+        XCTAssertTrue(monthTitle.waitForExistence(timeout: 5), "Tracker month history disappeared")
     }
 
     @MainActor

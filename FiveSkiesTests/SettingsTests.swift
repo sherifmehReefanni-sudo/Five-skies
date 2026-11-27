@@ -79,4 +79,76 @@ final class SettingsTests: XCTestCase {
         XCTAssertGreaterThan(hanafi.asr, standard.asr)
         XCTAssertEqual(hanafi.dhuhr, standard.dhuhr)
     }
+
+    func testAlertAdditionsDefaults() {
+        let settings = AppSettings(defaults: defaults)
+        XCTAssertEqual(settings.endReminderMinutes, 0)
+        XCTAssertFalse(settings.nightAlarmEnabled)
+        XCTAssertEqual(settings.nightAlarmAnchor, .lastThirdOfNight)
+        XCTAssertEqual(settings.nightAlarmOffsetMinutes, 0)
+        XCTAssertEqual(settings.nightAlarmWeekdays, Set(1...7))
+
+        let prefs = settings.alertPreferences
+        XCTAssertEqual(prefs.endReminderMinutes, 0)
+        XCTAssertEqual(prefs.ishaEnd, settings.ishaEnd)
+        XCTAssertFalse(prefs.nightAlarm.isEnabled)
+        XCTAssertEqual(prefs.nightAlarm, NightAlarmSettings())
+    }
+
+    func testAlertAdditionsRoundTrip() {
+        let writer = AppSettings(defaults: defaults)
+        writer.endReminderMinutes = 20
+        writer.ishaEnd = .fajr
+        writer.nightAlarmEnabled = true
+        writer.nightAlarmAnchor = .fajr
+        writer.nightAlarmOffsetMinutes = -45
+        writer.nightAlarmWeekdays = [2, 6]
+
+        let reader = AppSettings(defaults: defaults)
+        XCTAssertEqual(reader.endReminderMinutes, 20)
+        XCTAssertTrue(reader.nightAlarmEnabled)
+        XCTAssertEqual(reader.nightAlarmAnchor, .fajr)
+        XCTAssertEqual(reader.nightAlarmOffsetMinutes, -45)
+        XCTAssertEqual(reader.nightAlarmWeekdays, [2, 6])
+        XCTAssertEqual(reader.alertPreferences, writer.alertPreferences)
+        XCTAssertEqual(reader.alertPreferences.ishaEnd, .fajr)
+        XCTAssertEqual(
+            reader.alertPreferences.nightAlarm,
+            NightAlarmSettings(isEnabled: true, anchor: .fajr, offsetMinutes: -45, weekdays: [2, 6])
+        )
+        XCTAssertEqual(reader.snapshot, writer.snapshot)
+    }
+
+    func testAlertAdditionsInvalidStoredValuesFallBack() {
+        defaults.set(7, forKey: AppSettings.Keys.endReminderMinutes)
+        defaults.set("noon", forKey: AppSettings.Keys.nightAlarmAnchor)
+        defaults.set(13, forKey: AppSettings.Keys.nightAlarmOffset)
+        defaults.set([0, 9], forKey: AppSettings.Keys.nightAlarmWeekdays)
+        let settings = AppSettings(defaults: defaults)
+        XCTAssertEqual(settings.endReminderMinutes, 0)
+        XCTAssertEqual(settings.nightAlarmAnchor, .lastThirdOfNight)
+        XCTAssertEqual(settings.nightAlarmOffsetMinutes, 0)
+        XCTAssertEqual(settings.nightAlarmWeekdays, Set(1...7))
+    }
+
+    func testNightAlarmAloneNeedsNotificationPermission() {
+        var off: [Prayer: AlertMode] = [:]
+        for prayer in Prayer.allCases { off[prayer] = .off }
+        var prefs = AlertPreferences(modes: off, reminderMinutesBefore: 0)
+        XCTAssertFalse(prefs.wantsAnyAlert)
+        XCTAssertFalse(prefs.needsNotificationPermission)
+        prefs.nightAlarm.isEnabled = true
+        XCTAssertFalse(prefs.wantsAnyAlert)
+        XCTAssertTrue(prefs.needsNotificationPermission)
+    }
+
+    func testChangingAlertAdditionsChangesTheSnapshot() {
+        let settings = AppSettings(defaults: defaults)
+        let before = settings.snapshot
+        settings.nightAlarmOffsetMinutes = 15
+        XCTAssertNotEqual(settings.snapshot, before)
+        let middle = settings.snapshot
+        settings.endReminderMinutes = 10
+        XCTAssertNotEqual(settings.snapshot, middle)
+    }
 }

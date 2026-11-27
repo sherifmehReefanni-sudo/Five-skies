@@ -81,6 +81,7 @@ private struct TodayScreen: View {
 
     @State private var prayed: Set<Prayer> = []
     @State private var showsSettings = false
+    @State private var showsDay = false
     /// Turns true on first appearance to play the entrance. With motion off everything is in place anyway.
     @State private var revealed = false
     @EnvironmentObject private var settings: AppSettings
@@ -132,6 +133,9 @@ private struct TodayScreen: View {
                 .padding(.top, 12)
                 .padding(.horizontal, 16)
                 Spacer(minLength: 16)
+                TrackerChipsView(now: now)
+                    .padding(.bottom, 10)
+                    .riseIn(revealed: revealed, delay: 0.28)
                 tiles(for: day, next: next.prayer, format: format, timeZone: timeZone)
                     .padding(.horizontal, 14)
                     .padding(.bottom, 16)
@@ -164,6 +168,10 @@ private struct TodayScreen: View {
                 .environmentObject(settings)
                 .environmentObject(scheduler)
         }
+        .sheet(isPresented: $showsDay) {
+            DayView(service: service, place: place ?? Place.makkahFallback)
+                .environmentObject(settings)
+        }
     }
 
     /// The sky phase with what it was worked out for, or nil while locating.
@@ -194,11 +202,25 @@ private struct TodayScreen: View {
         var dateStyle = Self.dateStyle
         dateStyle.timeZone = timeZone
         return HStack(alignment: .center, spacing: 10) {
-            Text(now.formatted(dateStyle))
-                .font(.headline.weight(.bold))
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-                .layoutPriority(0)
+            Button {
+                showsDay = true
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(now.formatted(dateStyle))
+                        .font(.headline.weight(.bold))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                        .multilineTextAlignment(.leading)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.heavy))
+                        .opacity(0.7)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressScaleButtonStyle(pressedScale: 0.96))
+            .accessibilityHint(Text("Shows the full day"))
+            .accessibilityIdentifier("openDayView")
+            .layoutPriority(0)
             Spacer(minLength: 4)
             LocationPill(
                 text: pillText,

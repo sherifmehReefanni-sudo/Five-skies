@@ -1,7 +1,8 @@
 import Foundation
 import UserNotifications
 
-/// Schedules the prayer notifications with UNUserNotificationCenter.
+/// Schedules the prayer notifications with UNUserNotificationCenter, and the night alarm
+/// with AlarmKit on iOS 26 and later (see NightAlarmKit.swift).
 /// When disabled (fixed phase UI tests or the unit test host) every method does nothing,
 /// so tests never touch the notification center or see a permission prompt.
 final class NotificationScheduler: ObservableObject {
@@ -17,6 +18,10 @@ final class NotificationScheduler: ObservableObject {
     }
 
     private var lastContext: Context?
+    /// Counts reschedules so a slower, older refresh never overwrites a newer one.
+    private var generation = 0
+    /// The latest refresh, so refreshes run one after another.
+    private var alarmTask: Task<Void, Never>?
 
     init(isEnabled: Bool) {
         self.isEnabled = isEnabled
@@ -26,10 +31,11 @@ final class NotificationScheduler: ObservableObject {
         self.init(isEnabled: launch.fixedPhase == nil && !launch.isUnitTestHost)
     }
 
-    /// Asks for alert and sound permission if any prayer has alerts on. Called from the settings screen.
+    /// Asks for alert and sound permission if any prayer has alerts on or the night alarm is on.
+    /// Called from the settings screen.
     func requestAuthorizationIfNeeded(preferences: AlertPreferences) {
         guard isEnabled else { return }
-        guard preferences.wantsAnyAlert else {
+        guard preferences.needsNotificationPermission else {
             refreshAuthorizationStatus()
             return
         }
@@ -39,6 +45,17 @@ final class NotificationScheduler: ObservableObject {
                 self.refreshAuthorizationStatus()
                 self.rescheduleLast()
             }
+        }
+    }
+
+    /// Called when the user turns the night alarm on. On iOS 26 and later asks for AlarmKit
+    /// permission; then asks for notification permission, which is the fallback.
+    func nightAlarmTurnedOn(preferences: AlertPreferences) {
+        guard isEnabled else { return }
+        lastContext?.preferences = preferences
+        Task { @MainActor in
+            _ = await NightAlarmBridge.requestAuthorization()
+            self.requestAuthorizationIfNeeded(preferences: preferences)
         }
     }
 
@@ -53,8 +70,8 @@ final class NotificationScheduler: ObservableObject {
         }
     }
 
-    /// Replaces this app's pending prayer notifications with a fresh plan for today and tomorrow.
-    /// Days and day keys are worked out in the place's own time zone.
+    /// Replaces this app's pending notifications with a fresh plan for today and tomorrow,
+    /// and refreshes the night alarm. Days and day keys are worked out in the place's own time zone.
     func reschedule(service base: PrayerTimesService, place: Place, preferences: AlertPreferences, now: Date) {
         guard isEnabled else { return }
         lastContext = Context(service: base, place: place, preferences: preferences)
@@ -70,7 +87,54 @@ final class NotificationScheduler: ObservableObject {
            let tomorrow = service.prayerDay(at: coordinate, on: nextDate) {
             days.append(tomorrow)
         }
-        let plan = NotificationPlan.make(days: days, preferences: preferences, now: now, calendar: calendar)
+
+        var schedules: [DaySchedule] = []
+        if preferences.endReminderMinutes > 0 {
+            schedules = (0...1).compactMap { offset in
+                calendar.date(byAdding: .day, value: offset, to: now)
+                    .flatMap { base.daySchedule(for: place, on: $0) }
+            }
+        }
+
+        var nights: [PlannedNightAlarm] = []
+        let nightSettings = preferences.nightAlarm
+        if nightSettings.isEnabled {
+            // Yesterday's night can still be ahead in the small hours; a week covers any choice of days.
+            let nightSchedules: [DaySchedule] = (-1...7).compactMap { offset in
+                calendar.date(byAdding: .day, value: offset, to: now)
+                    .flatMap { base.daySchedule(for: place, on: $0) }
+            }
+            nights = NightAlarmPlan.upcoming(schedules: nightSchedules, settings: nightSettings, now: now, calendar: calendar)
+        }
+
+        // Fixed copies for the task below; captured vars are not allowed in concurrent code.
+        let plannedDays = days
+        let plannedSchedules = schedules
+        let plannedNights = nights
+
+        generation += 1
+        let current = generation
+        let previous = alarmTask
+        alarmTask = Task { @MainActor in
+            // One refresh at a time, and only the newest one runs.
+            await previous?.value
+            guard current == self.generation else { return }
+            let usesAlarmKit = await NightAlarmBridge.sync(plannedNights, enabled: nightSettings.isEnabled)
+            guard current == self.generation else { return }
+            let plan = NotificationPlan.full(
+                days: plannedDays,
+                schedules: plannedSchedules,
+                preferences: preferences,
+                nightAlarms: usesAlarmKit ? [] : plannedNights,
+                now: now,
+                calendar: calendar
+            )
+            self.apply(plan)
+        }
+    }
+
+    /// Adds `plan` to the notification center and removes our pending requests that are not in it.
+    private func apply(_ plan: [PlannedNotification]) {
         let requests = plan.map(Self.request(for:))
         let wanted = Set(plan.map { $0.id })
 
@@ -119,6 +183,9 @@ final class NotificationScheduler: ObservableObject {
         content.title = item.title
         content.body = item.body
         content.sound = item.hasSound ? UNNotificationSound.default : nil
+        if item.isTimeSensitive {
+            content.interruptionLevel = .timeSensitive
+        }
         let components = Calendar.current.dateComponents(
             [.year, .month, .day, .hour, .minute, .second],
             from: item.fireDate

@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// The "Adhan and alerts" screen: per prayer alerts, reminder, and calculation settings.
+/// The "Adhan and alerts" screen: per prayer alerts, reminders, the night alarm, and calculation settings.
 /// Reads AppSettings and NotificationScheduler from the environment.
 struct SettingsView: View {
     @EnvironmentObject private var settings: AppSettings
@@ -44,22 +44,73 @@ struct SettingsView: View {
                         }
                     }
 
-                    sectionTitle("Reminder")
-                    SettingsCard {
-                        HStack(spacing: 12) {
-                            Text("Reminder before prayer")
-                                .font(.subheadline.weight(.bold))
-                            Spacer(minLength: 8)
-                            Picker("Reminder before prayer", selection: $settings.reminderMinutesBefore) {
-                                ForEach(AppSettings.reminderOptions, id: \.self) { minutes in
-                                    Text(Self.reminderLabel(minutes)).tag(minutes)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .labelsHidden()
-                            .tint(Color(hex: 0xFFE0A3))
+                    Group {
+                        footnote("Silent shows a banner with no sound. Sound adds a short alert tone.")
+
+                        sectionTitle("Reminders")
+                        SettingsCard {
+                            menuRow(
+                                "Before prayer starts",
+                                accessibilityName: "Reminder before prayer",
+                                selection: $settings.reminderMinutesBefore,
+                                options: AppSettings.reminderOptions,
+                                label: Self.reminderLabel
+                            )
+                            SettingsDivider()
+                            menuRow(
+                                "Before prayer time ends",
+                                accessibilityName: "Reminder before prayer time ends",
+                                selection: $settings.endReminderMinutes,
+                                options: AppSettings.endReminderOptions,
+                                label: Self.reminderLabel
+                            )
                         }
-                        .frame(minHeight: 50)
+                        footnote("Reminders come for prayers with alerts on, with the same sound choice.")
+                    }
+
+                    Group {
+                        sectionTitle("Night alarm")
+                        SettingsCard {
+                            HStack(spacing: 12) {
+                                Text("Night alarm")
+                                    .font(.subheadline.weight(.bold))
+                                Spacer(minLength: 8)
+                                Toggle("Night alarm", isOn: $settings.nightAlarmEnabled)
+                                    .labelsHidden()
+                                    .tint(Color(hex: 0xFBC56A))
+                                    .accessibilityIdentifier("nightAlarmToggle")
+                            }
+                            .frame(minHeight: 50)
+
+                            if settings.nightAlarmEnabled {
+                                SettingsDivider()
+                                HStack(spacing: 12) {
+                                    Text("Wake for")
+                                        .font(.subheadline.weight(.bold))
+                                    Spacer(minLength: 8)
+                                    Picker("Wake for", selection: $settings.nightAlarmAnchor) {
+                                        ForEach(NightAlarmAnchor.allCases) { anchor in
+                                            Text(anchor.displayName).tag(anchor)
+                                        }
+                                    }
+                                    .pickerStyle(.menu)
+                                    .labelsHidden()
+                                    .tint(Color(hex: 0xFFE0A3))
+                                }
+                                .frame(minHeight: 50)
+                                SettingsDivider()
+                                menuRow(
+                                    "When",
+                                    accessibilityName: "Night alarm time",
+                                    selection: $settings.nightAlarmOffsetMinutes,
+                                    options: NightAlarmSettings.offsetOptions,
+                                    label: NightAlarmSettings.offsetLabel
+                                )
+                                SettingsDivider()
+                                weekdayRow
+                            }
+                        }
+                        footnote("On iOS 26 this uses a real alarm. On earlier versions it is a notification and follows your Focus settings.")
                     }
 
                     sectionTitle("Calculation")
@@ -114,6 +165,104 @@ struct SettingsView: View {
         .onChange(of: settings.alertModes) { _, _ in
             scheduler.requestAuthorizationIfNeeded(preferences: settings.alertPreferences)
         }
+        .onChange(of: settings.nightAlarmEnabled) { _, isOn in
+            if isOn {
+                scheduler.nightAlarmTurnedOn(preferences: settings.alertPreferences)
+            }
+        }
+    }
+
+    /// A row with a bold title and a menu picker on the right.
+    private func menuRow(
+        _ title: String,
+        accessibilityName: String,
+        selection: Binding<Int>,
+        options: [Int],
+        label: @escaping (Int) -> String
+    ) -> some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .font(.subheadline.weight(.bold))
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+            Spacer(minLength: 8)
+            Picker(accessibilityName, selection: selection) {
+                ForEach(options, id: \.self) { value in
+                    Text(label(value)).tag(value)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .tint(Color(hex: 0xFFE0A3))
+        }
+        .frame(minHeight: 50)
+    }
+
+    /// Seven day chips in the order of the user's calendar. At least one stays on.
+    private var weekdayRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Rings on")
+                .font(.subheadline.weight(.bold))
+            HStack(spacing: 6) {
+                ForEach(Self.orderedWeekdays, id: \.self) { weekday in
+                    weekdayChip(weekday)
+                }
+            }
+        }
+        .padding(.vertical, 12)
+    }
+
+    private func weekdayChip(_ weekday: Int) -> some View {
+        let isOn = settings.nightAlarmWeekdays.contains(weekday)
+        return Button {
+            var days = settings.nightAlarmWeekdays
+            if isOn {
+                guard days.count > 1 else { return }
+                days.remove(weekday)
+            } else {
+                days.insert(weekday)
+            }
+            settings.nightAlarmWeekdays = days
+        } label: {
+            Text(Self.shortWeekdayName(weekday))
+                .font(.caption.weight(.heavy))
+                .foregroundStyle(isOn ? Color(hex: 0x120B1F) : .white)
+                .frame(maxWidth: .infinity, minHeight: 36)
+                .background(
+                    Capsule().fill(isOn ? Color(hex: 0xFBC56A) : Color.white.opacity(0.1))
+                )
+                .overlay(
+                    Capsule().strokeBorder(Color.white.opacity(isOn ? 0 : 0.24), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Self.fullWeekdayName(weekday))
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+
+    /// Calendar weekday numbers starting from the user's first day of the week.
+    private static var orderedWeekdays: [Int] {
+        let first = Calendar.current.firstWeekday
+        return (0..<7).map { ((first - 1 + $0) % 7) + 1 }
+    }
+
+    private static func shortWeekdayName(_ weekday: Int) -> String {
+        let symbols = Calendar.current.veryShortStandaloneWeekdaySymbols
+        return symbols.indices.contains(weekday - 1) ? symbols[weekday - 1] : "\(weekday)"
+    }
+
+    private static func fullWeekdayName(_ weekday: Int) -> String {
+        let symbols = Calendar.current.standaloneWeekdaySymbols
+        return symbols.indices.contains(weekday - 1) ? symbols[weekday - 1] : "\(weekday)"
+    }
+
+    private func footnote(_ text: String) -> some View {
+        Text(text)
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.white.opacity(0.84))
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 8)
+            .padding(.top, 8)
     }
 
     private var header: some View {

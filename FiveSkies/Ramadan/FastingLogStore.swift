@@ -50,6 +50,16 @@ struct FastingLogStore {
         setKey(day.key, included: logged, in: Self.voluntaryKey)
     }
 
+    // MARK: - Any fast
+
+    /// Whether any fast is logged on this Hijri day: a Ramadan day or a voluntary fast.
+    func hasFastLogged(on day: HijriDay) -> Bool {
+        if day.month == RamadanCalendar.ramadanMonth, isFasted(day: day.day, year: day.year) {
+            return true
+        }
+        return isVoluntaryFastLogged(on: day)
+    }
+
     // MARK: - Taraweeh
 
     func prayedTaraweeh(on day: HijriDay) -> Bool {
