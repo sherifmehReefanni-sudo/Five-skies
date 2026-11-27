@@ -169,3 +169,13 @@ Reef chose the offline city list. Build work for Opus:
 - If the nearest city is far away (say over 50 km), show "Your location" instead of a wrong name.
 - The location prompt and onboarding line can then stay true for prayer times. The privacy page still needs the P1 rewrite (Apple Maps for Mosques and halal, the relay, iCloud backup).
 Reef also said yes to TestFlight build 5 (round 2, iCloud, Fable review fixes).
+
+## Opus session, Nov 27 afternoon: city list, privacy page, round B1
+
+Done and passing CI (run 46058474074, commit ef6023b; bar backing fix 04ba96b):
+- Offline city names: `tools/fetch_cities.py` + `.github/workflows/fetch-cities.yml` fetched GeoNames cities15000 (CONFIRMED CC BY 4.0 on geonames.org/about.html) into `FiveSkies/Resources/Cities/` (34,247 rows, Latin names only, SOURCE.txt with license and changes). `CityIndex` finds the nearest city within 50 km, else "Your location". Geocoder and `lookupsEnabled` removed. GeoNames credit added to SourcesView.
+- P1 privacy page rewritten and live (`docs/privacy.html`): Quran Foundation APIs named, relay on Cloudflare (no request logging, per-IP rate counting for one minute), recitations stream from QF audio servers, Apple Maps only for mosque and halal search, optional iCloud backup, feedback by mail, tips through Apple. Location prompt (project.yml) and `OnboardingGate.locationReason` now say "never sent to us. Apple Maps sees it only when you search for mosques or halal food."
+- Round B1 (`FiveSkies/Listen/`): Audio (ListenPlayer, AVPlayerEngine, SimulatedEngine, lock screen, interruptions), Catalog (RelayListenCatalog with 1 hour memory cache, FakeListenCatalog), UI (ListenTabView, reciter picker, now playing bar, player sheet, credit line). Shared contracts in `FiveSkies/Listen/ListenModels.swift`. Background audio mode on. `-FSFakeListen` for tests.
+- Relay: `resources/chapter_reciters` allowed, reciter and chapter_recitations answers cached 1 hour, Retry-After passed through on 429, relay's own 429 sends Retry-After 60. 23 relay tests pass. NOT DEPLOYED: Reef must copy `relay/src` next to `2_Deploy_Relay.bat` and run it. The Listen tab cannot load reciters from the live relay until then.
+UNVERIFIED: audio host for relative URLs (assumed download.quranicaudio.com); real playback, lock screen controls and interruptions on a device; which reciters prelive lists.
+Next: relay deploy, then a TestFlight build for B1 (needs Reef's yes). Then round B2 per docs/PHASE_B_PLAN.md (timings, 7 day save; the reader highlight hook is a Fable checkpoint).
