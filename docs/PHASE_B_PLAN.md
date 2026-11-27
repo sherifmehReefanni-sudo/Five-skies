@@ -15,6 +15,12 @@ Source: Quran Foundation Developer Terms, "Last updated 2026-11-19", https://api
 7. The privacy policy must name the app and say it uses the Quran Foundation APIs (Developer Privacy Policy requirements).
 8. Production access: request the scopes in Developer Console; a person at QF reviews it.
 
+## Correction, Nov 27, 2026, 18:20 ET (Fable read the terms page through a page fetch)
+
+Points 2 and 3 above and decisions D1 and D2 below are out of date. Section 3.1 of the terms has an "Offline recitation downloads" rule: a user may keep downloaded recitation audio (verse, chapter and word recordings) with NO one week limit when all of these hold: (a) the user asked for or turned on the download; (b) the files stay in the app's private storage; (c) the recitation records are kept current through Content Sync, and a file is deleted or replaced when the recitation is removed or its audio URL changes; (d) Quran Foundation and the reciter are credited; (e) files are deleted when the user removes them, when Quran Foundation asks, or when access ends. Any other copy of a recording still has the one week limit, and "stopping playback is not sufficient".
+New D1: "Save for offline" is a real download with no expiry, built to conditions (a) to (e). No auto-download. New D2: nothing to ask Quran Foundation for; drop that sentence from the production request.
+Other points confirmed by the same read: Quran text must not be modified in any way; changing presentation is allowed when the text is not altered; highlighting and word splitting are not mentioned; a public repository holding their content is redistribution; a build-time bundle is not allowed. Source was a fetched summary of the page, not the page word for word, so treat exact wording as UNVERIFIED and the substance as CONFIRMED.
+
 ## Decisions (Fable)
 
 D1. Audio is stream first. "Save for offline" keeps a surah for 7 days, shows the days left, then removes the file. Label it honestly: "Saved for 7 days". No permanent downloads unless QF says yes in writing.

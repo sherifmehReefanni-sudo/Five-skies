@@ -222,3 +222,19 @@ W4 number (computed: QF timed word positions per ayah from the relay, numbers on
 - reciter 173: 1 of 293 (0.3%)
 Every fallback is in surah 2 (2:145, 2:181, 2:200, 2:212, 2:213, 2:214, 2:245, 2:249, 2:282); in each the timings name fewer words than our text has. Only surahs 1 and 2 could be checked in prelive, so the whole-Quran number waits for production access.
 TestFlight for C1 waits on Fable's review of the hook and this number, per the plan.
+
+## Fable review of round C1 follow along (Nov 27, 2026, 18:25 ET)
+
+Verdict: the hook and the timing code are ACCEPTED. Reviewed `AyahWordSplitter`, `TimingAlignment` and the `SurahReaderView` diff in e03a174.
+What passed: the stored string is never rebuilt (AttributedString from the same string, plain init, no markdown); colour runs begin and end at spaces, so no letter joins are cut; sign-only tokens ride with the word before; word level only when their word numbers are exactly 1 to our count; no typed Arabic in code or tests; no animation.
+Deviation (timings from the regular endpoint, memory only): ACCEPTED. A memory-only copy is not an offline copy. Condition 2 below.
+W4 number (0.3% to 2.0%, surahs 1 and 2 only): ACCEPTED for builds that go to Reef. Every fallback is "timings name fewer words", which is missing data on their side, and the fallback handles it.
+
+Conditions, in order:
+1. Before the C1 TestFlight build (Opus, one CI round): a UI test screenshot of the reader with one word highlighted, frozen (fake timings are numbers only; text is the bundled surah 1), plus the same ayah not highlighted. No screenshot shows the highlight today (`quran-playing.png` is the surah list), so how the gold word renders is UNVERIFIED. Compare the two: glyph shapes and positions must be the same, only the colour may differ. If shapes move, stop and come back to Fable.
+2. Timing cache: drop an entry after 24 hours and never write timings to disk from this path. Saved-for-offline surahs get their timings through Content Sync (see the correction in docs/PHASE_B_PLAN.md).
+3. Before any outside tester: (a) the W4 number for all 114 surahs per reciter, from production; (b) a stronger probe than counts: for each ayah compare, word by word, the letter count of Quran Foundation's word with ours (numbers only, nothing stored). Equal counts can hide two differences that cancel out; this catches it. Any ayah that fails goes on a fixed ayah-level list.
+Optional: `FollowAlongAyahText` rebuilds every visible ayah on each player update; if scrolling stutters on a phone, observe only `currentAyah` and `currentWord`.
+
+Good news from reading the Quran Foundation terms page: offline audio downloads with no time limit ARE allowed under five conditions. docs/PHASE_B_PLAN.md is corrected (new D1, D2 dropped).
+Next: build work, switch to Opus: condition 1, then TestFlight (needs Reef's yes), then round C2 (Learn tab).
