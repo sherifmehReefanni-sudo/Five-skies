@@ -72,6 +72,7 @@ final class MemorizeTests: XCTestCase {
         return (defaults, suite)
     }
 
+    @MainActor
     func testProgressRoundTrip() throws {
         let (defaults, suite) = try makeDefaults()
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -89,6 +90,7 @@ final class MemorizeTests: XCTestCase {
         XCTAssertNil(reloaded.status(for: AyahRef(sura: 1, aya: 3)))
     }
 
+    @MainActor
     func testMarkingAgainReplacesAndClearRemoves() throws {
         let (defaults, suite) = try makeDefaults()
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -102,6 +104,7 @@ final class MemorizeTests: XCTestCase {
         XCTAssertNil(MemorizeProgressStore(defaults: defaults).status(for: ref))
     }
 
+    @MainActor
     func testKnownCountOnlyCountsKnownInRange() throws {
         let (defaults, suite) = try makeDefaults()
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -116,22 +119,32 @@ final class MemorizeTests: XCTestCase {
         XCTAssertEqual(store.knownCount(in: refs), 2)
     }
 
-    func testStoredJSONHoldsOnlyNumbersAndStatus() throws {
+    @MainActor
+    func testStoredJSONHoldsOnlyNumbersStatusAndDates() throws {
         let (defaults, suite) = try makeDefaults()
         defer { defaults.removePersistentDomain(forName: suite) }
 
         let store = MemorizeProgressStore(defaults: defaults)
-        store.mark(AyahRef(sura: 3, aya: 4), as: .known)
+        store.mark(AyahRef(sura: 3, aya: 4), as: .learning)
+        store.mark(AyahRef(sura: 3, aya: 5), as: .known)
         let data = try XCTUnwrap(defaults.data(forKey: MemorizeProgressStore.storageKey))
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [[String: Any]])
-        XCTAssertEqual(json.count, 1)
+        XCTAssertEqual(json.count, 2)
         let first = try XCTUnwrap(json.first)
         XCTAssertEqual(first["sura"] as? Int, 3)
         XCTAssertEqual(first["aya"] as? Int, 4)
-        XCTAssertEqual(first["status"] as? String, "known")
+        XCTAssertEqual(first["status"] as? String, "learning")
+        // A learning entry keeps the original format exactly.
         XCTAssertEqual(Set(first.keys), ["sura", "aya", "status"])
+        // A known entry adds its review schedule, as numbers and dates only.
+        let second = try XCTUnwrap(json.last)
+        XCTAssertEqual(second["aya"] as? Int, 5)
+        XCTAssertEqual(second["status"] as? String, "known")
+        XCTAssertEqual(Set(second.keys), ["sura", "aya", "status", "knownSince", "reviewStage", "nextReview"])
+        XCTAssertEqual(second["reviewStage"] as? Int, 0)
     }
 
+    @MainActor
     func testCorruptDataLoadsEmpty() throws {
         let (defaults, suite) = try makeDefaults()
         defer { defaults.removePersistentDomain(forName: suite) }

@@ -28,19 +28,6 @@ final class ToolsUITests: XCTestCase {
         attachScreenshot(named: "halal")
         goBackToMore(app)
 
-        // Memorize: first sura, start, practice screen.
-        openTool(app, tile: "moreTile-memorize", title: "memorizeTitle", timeout: 30)
-        let firstSura = app.buttons["memorizeSura-1"]
-        XCTAssertTrue(firstSura.waitForExistence(timeout: 30), "The sura list did not load")
-        firstSura.tap()
-        let start = app.buttons["memorizeStart"]
-        XCTAssertTrue(start.waitForExistence(timeout: 15), "Start button did not appear")
-        start.tap()
-        waitForAny(app, "memorizePracticeTitle", message: "Practice screen did not appear")
-        XCTAssertTrue(app.buttons["memorizeKnown"].waitForExistence(timeout: 15), "Practice controls did not appear")
-        attachScreenshot(named: "memorize")
-        goBackToMore(app)
-
         // Tip jar, from the support row.
         let support = supportRow(app)
         XCTAssertTrue(support.waitForExistence(timeout: 15), "Support row did not appear")

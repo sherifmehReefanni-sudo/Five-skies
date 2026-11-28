@@ -119,7 +119,7 @@ struct AyahToolbar: View {
 
     private var moreMenu: some View {
         Menu {
-            ForEach(AyahToolbarMenuItem.allCases, id: \.self) { item in
+            ForEach(AyahToolbarMenuItem.allCases.filter { $0 != .removeKnownMark || actions.removeKnownMark != nil }, id: \.self) { item in
                 Button {
                     perform(item)
                 } label: {
@@ -166,6 +166,8 @@ struct AyahToolbar: View {
             actions.shareAsImage()
         case .markLastRead:
             actions.markLastRead()
+        case .removeKnownMark:
+            actions.removeKnownMark?()
         }
         close()
     }

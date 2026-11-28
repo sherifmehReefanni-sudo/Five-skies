@@ -4,6 +4,7 @@ import SwiftUI
 enum AppTab: Hashable {
     case today
     case quran
+    case learn
     case qibla
     case more
 }

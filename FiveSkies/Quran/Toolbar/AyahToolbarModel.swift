@@ -24,6 +24,8 @@ struct AyahToolbarActions {
     let markLastRead: () -> Void
     /// Nil hides the Words button (round E2).
     let words: (() -> Void)?
+    /// Takes back an "I know this" mark. Nil hides the menu item (shown only for known ayahs).
+    let removeKnownMark: (() -> Void)?
 
     init(
         play: @escaping () -> Void,
@@ -32,7 +34,8 @@ struct AyahToolbarActions {
         copy: @escaping () -> Void,
         shareAsImage: @escaping () -> Void,
         markLastRead: @escaping () -> Void,
-        words: (() -> Void)? = nil
+        words: (() -> Void)? = nil,
+        removeKnownMark: (() -> Void)? = nil
     ) {
         self.play = play
         self.toggleBookmark = toggleBookmark
@@ -41,6 +44,7 @@ struct AyahToolbarActions {
         self.shareAsImage = shareAsImage
         self.markLastRead = markLastRead
         self.words = words
+        self.removeKnownMark = removeKnownMark
     }
 }
 
@@ -122,12 +126,14 @@ enum AyahToolbarMenuItem: CaseIterable, Equatable, Hashable {
     case copy
     case shareAsImage
     case markLastRead
+    case removeKnownMark
 
     var title: String {
         switch self {
         case .copy: return "Copy"
         case .shareAsImage: return "Share as image"
         case .markLastRead: return "Mark as last read"
+        case .removeKnownMark: return "Remove known mark"
         }
     }
 
@@ -136,6 +142,7 @@ enum AyahToolbarMenuItem: CaseIterable, Equatable, Hashable {
         case .copy: return "toolbarCopy"
         case .shareAsImage: return "toolbarShareImage"
         case .markLastRead: return "toolbarLastRead"
+        case .removeKnownMark: return "toolbarRemoveKnown"
         }
     }
 
@@ -144,6 +151,7 @@ enum AyahToolbarMenuItem: CaseIterable, Equatable, Hashable {
         case .copy: return "doc.on.doc"
         case .shareAsImage: return "photo"
         case .markLastRead: return "book"
+        case .removeKnownMark: return "checkmark.seal"
         }
     }
 }

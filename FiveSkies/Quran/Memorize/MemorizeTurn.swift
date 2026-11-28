@@ -1,51 +1,5 @@
 import SwiftUI
 
-/// Ayahs the listener marked "I know this" while memorizing. Kept on this iPhone only.
-@MainActor
-final class KnownAyahsStore: ObservableObject {
-    static let shared = KnownAyahsStore()
-    static let key = "memorize.knownAyahs"
-
-    @Published private(set) var known: Set<AyahRef>
-    private let defaults: UserDefaults
-
-    init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        let saved = defaults.stringArray(forKey: Self.key) ?? []
-        known = Set(saved.compactMap(Self.ref(from:)))
-    }
-
-    func contains(_ ref: AyahRef) -> Bool {
-        known.contains(ref)
-    }
-
-    func markKnown(_ ref: AyahRef) {
-        guard !known.contains(ref) else { return }
-        known.insert(ref)
-        save()
-    }
-
-    func forget(_ ref: AyahRef) {
-        guard known.remove(ref) != nil else { return }
-        save()
-    }
-
-    func count(inSura sura: Int) -> Int {
-        known.filter { $0.sura == sura }.count
-    }
-
-    private func save() {
-        let list = known.sorted().map { "\($0.sura):\($0.aya)" }
-        defaults.set(list, forKey: Self.key)
-    }
-
-    nonisolated static func ref(from key: String) -> AyahRef? {
-        let parts = key.split(separator: ":").compactMap { Int($0) }
-        guard parts.count == 2, parts[0] >= 1, parts[1] >= 1 else { return nil }
-        return AyahRef(sura: parts[0], aya: parts[1])
-    }
-}
-
 /// Which ayah the reader hides right now: the one whose turn it is in Memorize.
 /// Pure, so it can be tested without a player.
 enum MemorizeTurn {
@@ -65,9 +19,16 @@ enum MemorizeTurn {
 
     static func frozenAyah(forChapter chapter: Int, arguments: [String] = ProcessInfo.processInfo.arguments) -> Int? {
         guard let index = arguments.firstIndex(of: argument), arguments.indices.contains(index + 1),
-              let ref = KnownAyahsStore.ref(from: arguments[index + 1]), ref.sura == chapter
+              let ref = ref(from: arguments[index + 1]), ref.sura == chapter
         else { return nil }
         return ref.aya
+    }
+
+    /// Reads "sura:ayah".
+    static func ref(from key: String) -> AyahRef? {
+        let parts = key.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2, parts[0] >= 1, parts[1] >= 1 else { return nil }
+        return AyahRef(sura: parts[0], aya: parts[1])
     }
 }
 
@@ -104,6 +65,7 @@ struct MemorizeTurnCover: View {
     let ayah: Int
     let isKnown: Bool
     let onPeek: () -> Void
+    /// Marks the ayah known, or takes the mark back when it already is.
     let onKnown: () -> Void
 
     @State private var marks = 0
@@ -136,7 +98,7 @@ struct MemorizeTurnCover: View {
                     marks += 1
                     onKnown()
                 } label: {
-                    Label(isKnown ? "Known" : "I know this", systemImage: isKnown ? "checkmark.seal.fill" : "checkmark.seal")
+                    Label(isKnown ? "Known, tap to undo" : "I know this", systemImage: isKnown ? "checkmark.seal.fill" : "checkmark.seal")
                         .font(.subheadline.weight(.heavy))
                         .foregroundStyle(MorePalette.ink)
                         .frame(maxWidth: .infinity, minHeight: 44)

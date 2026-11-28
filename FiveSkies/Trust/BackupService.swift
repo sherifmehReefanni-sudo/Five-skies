@@ -123,7 +123,8 @@ final class BackupService {
         "tracker.",
         "goals.",
         "dhikr.",
-        "alerts."
+        "alerts.",
+        "readingPlan."
     ]
 
     static func isIncluded(_ key: String) -> Bool {

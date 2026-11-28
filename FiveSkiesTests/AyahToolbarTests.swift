@@ -65,11 +65,11 @@ final class AyahToolbarTests: XCTestCase {
 
     func testIdentifiers() {
         XCTAssertEqual(AyahToolbarButton.allCases.map(\.identifier), ["toolbarPlay", "toolbarBookmark", "toolbarWords", "toolbarShare", "toolbarMore"])
-        XCTAssertEqual(AyahToolbarMenuItem.allCases.map(\.identifier), ["toolbarCopy", "toolbarShareImage", "toolbarLastRead"])
+        XCTAssertEqual(AyahToolbarMenuItem.allCases.map(\.identifier), ["toolbarCopy", "toolbarShareImage", "toolbarLastRead", "toolbarRemoveKnown"])
     }
 
     func testMenuOrderAndTitles() {
-        XCTAssertEqual(AyahToolbarMenuItem.allCases.map(\.title), ["Copy", "Share as image", "Mark as last read"])
+        XCTAssertEqual(AyahToolbarMenuItem.allCases.map(\.title), ["Copy", "Share as image", "Mark as last read", "Remove known mark"])
     }
 
     func testOneShotActionsCloseTheBarButBookmarkDoesNot() {

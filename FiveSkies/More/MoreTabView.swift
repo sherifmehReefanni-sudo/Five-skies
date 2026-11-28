@@ -129,7 +129,6 @@ enum MoreTool: String, CaseIterable, Identifiable {
     case names
     case mosques
     case halal
-    case memorize
     case stories
     case themes
     case preferences
@@ -152,7 +151,6 @@ enum MoreTool: String, CaseIterable, Identifiable {
         case .names: return "99 Names"
         case .mosques: return "Mosques nearby"
         case .halal: return "Halal food"
-        case .memorize: return "Memorize"
         case .stories: return "Stories"
         case .themes: return "Themes"
         case .sources: return "About and sources"
@@ -174,7 +172,6 @@ enum MoreTool: String, CaseIterable, Identifiable {
         case .names: return "sparkles"
         case .mosques: return "mappin.and.ellipse"
         case .halal: return "fork.knife"
-        case .memorize: return "bookmark"
         case .stories: return "book"
         case .themes: return "paintpalette"
         case .sources: return "info.circle"
@@ -187,7 +184,7 @@ enum MoreTool: String, CaseIterable, Identifiable {
         case .tasbih, .stories: return Color(red: 90 / 255, green: 150 / 255, blue: 240 / 255).opacity(0.45)
         case .hijriCalendar, .halal, .timetable: return Color(red: 240 / 255, green: 150 / 255, blue: 80 / 255).opacity(0.45)
         case .hadith, .mosques: return Color(red: 64 / 255, green: 200 / 255, blue: 180 / 255).opacity(0.4)
-        case .duas, .memorize: return Color(red: 160 / 255, green: 120 / 255, blue: 240 / 255).opacity(0.45)
+        case .duas: return Color(red: 160 / 255, green: 120 / 255, blue: 240 / 255).opacity(0.45)
         case .ramadan: return Color(red: 240 / 255, green: 110 / 255, blue: 150 / 255).opacity(0.45)
         case .names, .themes: return Color(red: 240 / 255, green: 200 / 255, blue: 90 / 255).opacity(0.45)
         case .sources, .preferences: return Color.white.opacity(0.22)
@@ -196,7 +193,7 @@ enum MoreTool: String, CaseIterable, Identifiable {
 
     var isAvailable: Bool {
         switch self {
-        case .tracker, .goals, .tasbih, .zakat, .hijriCalendar, .timetable, .ramadan, .mosques, .halal, .memorize,
+        case .tracker, .goals, .tasbih, .zakat, .hijriCalendar, .timetable, .ramadan, .mosques, .halal,
              .themes, .preferences, .sources:
             return true
         case .hadith, .duas, .names, .stories:
@@ -217,7 +214,6 @@ enum MoreTool: String, CaseIterable, Identifiable {
         case .ramadan: RamadanView()
         case .mosques: MosquesView()
         case .halal: HalalFoodView()
-        case .memorize: MemorizeView()
         case .themes: ThemesView()
         case .sources: SourcesView()
         case .hadith, .duas, .names, .stories: EmptyView()

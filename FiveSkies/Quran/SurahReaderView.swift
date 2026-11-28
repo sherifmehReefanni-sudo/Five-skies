@@ -42,7 +42,7 @@ struct SurahReaderView: View {
     /// Memorize: the ayah whose turn it is, hidden until the listener peeks (E2.1).
     @State private var hiddenAyah: Int?
     @State private var peekedAyah: Int?
-    @ObservedObject private var known = KnownAyahsStore.shared
+    @ObservedObject private var progress = MemorizeProgressStore.shared
     /// The ayah whose Words sheet is open (E2.2).
     @State private var wordsAyah: Ayah?
     @State private var wordsProvider: (any AyahWordsProviding)? = AyahWordsProviderFactory.live()
@@ -212,7 +212,8 @@ struct SurahReaderView: View {
                         lastRead.update(ref)
                         ContinueStore.shared.noteReading(sura: item.sura, ayah: item.ayah, at: Date())
                     },
-                    words: { wordsAyah = ayah }
+                    words: { wordsAyah = ayah },
+                    removeKnownMark: progress.isKnown(ref) ? { progress.clear(ref) } : nil
                 ),
                 onClose: {}
             )
@@ -331,7 +332,7 @@ struct SurahReaderView: View {
             : nil
         // Memorize hides the Arabic with opacity only: same string, same drawing path.
         let isHidden = hiddenAyah == ayah.number && peekedAyah != ayah.number
-        let isKnown = known.contains(ayah.ref)
+        let isKnown = progress.isKnown(ayah.ref)
         return Button {
             let tapped = AyahToolbarItem(sura: ayah.sura, ayah: ayah.number)
             toolbarItem = toolbarItem == tapped ? nil : tapped
@@ -393,8 +394,12 @@ struct SurahReaderView: View {
                     isKnown: isKnown,
                     onPeek: { peekedAyah = ayah.number },
                     onKnown: {
-                        known.markKnown(ayah.ref)
-                        peekedAyah = ayah.number
+                        if progress.isKnown(ayah.ref) {
+                            progress.clear(ayah.ref)
+                        } else {
+                            progress.markKnown(ayah.ref)
+                            peekedAyah = ayah.number
+                        }
                     }
                 )
             }

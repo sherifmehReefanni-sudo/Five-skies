@@ -83,6 +83,12 @@ struct FiveSkiesApp: App {
                     .tabItem { Label("Quran", systemImage: "book") }
                     .tag(AppTab.quran)
 
+                LearnTabView()
+                    .tabArrival()
+                    .legibleTabBar()
+                    .tabItem { Label("Learn", systemImage: "graduationcap") }
+                    .tag(AppTab.learn)
+
                 QiblaTabView()
                     .tabArrival()
                     .legibleTabBar()

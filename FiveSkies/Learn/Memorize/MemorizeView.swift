@@ -3,7 +3,7 @@ import SwiftUI
 /// Memorise: pick a sura, pick an ayah range, then practise one ayah at a time.
 struct MemorizeView: View {
     @EnvironmentObject private var quran: QuranStore
-    @StateObject private var progress = MemorizeProgressStore()
+    @ObservedObject private var progress = MemorizeProgressStore.shared
     @State private var query = ""
     @State private var selected: Sura?
 
