@@ -91,7 +91,7 @@ final class ListenUITests: XCTestCase {
         ayah.tap()
 
         // Dialog buttons may not keep their identifier, so the label prefix is the fallback.
-        let byIdentifier = app.buttons["ayahPlayFrom"]
+        let byIdentifier = app.buttons.matching(identifier: "ayahPlayFrom").firstMatch
         let byLabel = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Play from this ayah")).firstMatch
         var found = false
         let deadline = Date().addingTimeInterval(10)
