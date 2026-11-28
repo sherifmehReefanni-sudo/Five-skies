@@ -294,3 +294,4 @@ Fixes on the way: Go to opens the reader after its sheet closes, and the reader 
 FollowAlongAyahText drawing unchanged.
 UNVERIFIED on a phone: far Go to jumps in long surahs (2:255 passes on the simulator).
 Next: TestFlight build 9 needs Reef's yes. Then round E2 (presets, Words sheet, search in the meaning).
+TestFlight run 46106567589 (Reef yes, 23:06 ET) succeeded: build 0.1.0 (9), commit fb8e51a.
