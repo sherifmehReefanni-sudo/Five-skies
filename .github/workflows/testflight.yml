@@ -104,6 +104,15 @@ jobs:
           echo "Key written."
           echo "path=$KEY_PATH" >> "$GITHUB_OUTPUT"
 
+      - name: Clear development certificates left by earlier runs (Reef approved Nov 28, 2026)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_PATH: ${{ steps.key.outputs.path }}
+        run: |
+          pip3 install --quiet --break-system-packages pyjwt cryptography requests || pip3 install --quiet pyjwt cryptography requests
+          python3 tools/asc_clean_dev_certs.py
+
       - name: Archive (Release, signed)
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
