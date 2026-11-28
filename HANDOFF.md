@@ -347,3 +347,4 @@ FABLE, decisions to look at in the next review (none blocks the build):
 2. Start here order after Al-Faatiha and the last three surahs.
 3. Review schedule starts at 1 day on marking known, then 3, 7, 14, 30.
 Next: TestFlight build 12 needs Reef's yes. Then round E4 (New to Islam).
+TestFlight run 46123971921 (Reef yes, 03:02 ET) succeeded: build 0.1.0 (12), commit 55aa0cb, app code as af28c44. The certificate cleanup revoked 1 of 1.
