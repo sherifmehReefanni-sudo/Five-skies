@@ -348,3 +348,19 @@ FABLE, decisions to look at in the next review (none blocks the build):
 3. Review schedule starts at 1 day on marking known, then 3, 7, 14, 30.
 Next: TestFlight build 12 needs Reef's yes. Then round E4 (New to Islam).
 TestFlight run 46123971921 (Reef yes, 03:02 ET) succeeded: build 0.1.0 (12), commit 55aa0cb, app code as af28c44. The certificate cleanup revoked 1 of 1.
+
+## Fable decisions and inbox sweep (Nov 28, 2026, 10:00 ET)
+
+Inbox sweep (Reef's main Gmail; the app inbox now forwards there):
+- NOT an approval: an email from support@sunnahsource.org says the sunnah.com request (issue #4540) is approved and gives a login for sunnahsource.org. It is a different organisation from sunnah.com: a paid Islamic API reseller and app-building shop ("Hafiz Developers"), no terms, no privacy policy, no named sources for its hadith text, and Reef never signed up. Issue #4540 itself shows no reply. DECISION: do not use sunnahsource.org as a source for anything, do not log in to that account. Hadith content stays blocked until sunnah.com answers on the issue.
+- Darussalam: no reply. Islamic Network d/365: no reply (page checked). Quran Foundation: nothing; the production request is still unsent.
+
+Decisions on the round E3 questions:
+1. Common words: count a word and the same word with a pause sign attached as ONE form. The counting key is the word token as stored, with its vowel marks, without any attached sign-only token. Do not strip vowel marks (that would merge different words). Show the percentage from that count. The example shown stays a slice of the stored text.
+2. Start here order: 1, then 112, 113, 114, then shortest first by ayah count, ties by word count from the bundled text (expected: 108, 103, 110, 106, 111, 105, 109, 107, 104; Opus computes it, does not type it). Under the list: "A common place to start. Your teacher may use another order."
+3. Review schedule (1, 3, 7, 14, 30 days): accepted.
+
+Duas from the Quran, verse keys for the manifest (keys only; Arabic from the bundled text, meaning from the chosen translation, always the whole ayah): 28:24, 3:173, 2:201, 25:74, 17:24. Plain English titles for the rows: "For provision", "Relying on Allah", "Good in this life and the next", "For spouse and children", "For parents". On the scholar sheet before outside testers.
+
+Quran Foundation production request, scope names for Reef (from relay/src/token.js): content.quran.read, content.translations.read, content.tafsirs.read, content.audio.read, content.metadata.read, content.sync.read. Draft text is in docs/READER_EASE_PLAN.md. Opus: confirm the privacy page address loads before Reef sends it.
+Next: build work, switch to Opus: decisions 1 and 2, the duas manifest, then round E4 (New to Islam).
