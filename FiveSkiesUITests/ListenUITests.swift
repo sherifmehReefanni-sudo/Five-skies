@@ -67,6 +67,11 @@ final class ListenUITests: XCTestCase {
         )
         XCTAssertEqual(XCTWaiter().wait(for: [closed], timeout: 10), .completed, "The player sheet did not close")
 
+        // The bar opened the reader, so go back to the surah list first.
+        let back = app.navigationBars.buttons.element(boundBy: 0)
+        if !app.buttons["suraRow-2"].exists && back.exists {
+            back.tap()
+        }
         let second = app.buttons["suraRow-2"]
         XCTAssertTrue(second.waitForExistence(timeout: 10), "The second surah row did not appear")
         second.tap()

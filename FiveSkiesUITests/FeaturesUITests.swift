@@ -45,8 +45,13 @@ final class FeaturesUITests: XCTestCase {
         XCTAssertTrue(firstAyah.waitForExistence(timeout: 20), "The first ayah did not appear")
         firstAyah.tap()
 
+        // Share as image sits in the toolbar's More menu.
+        let more = app.buttons["toolbarMore"]
+        XCTAssertTrue(more.waitForExistence(timeout: 10), "The ayah toolbar has no More button")
+        attachScreenshot(named: "ayah-toolbar")
+        more.tap()
         let shareAsImage = app.buttons["Share as image"]
-        XCTAssertTrue(shareAsImage.waitForExistence(timeout: 10), "Share as image did not appear in the ayah menu")
+        XCTAssertTrue(shareAsImage.waitForExistence(timeout: 10), "Share as image did not appear in the More menu")
         shareAsImage.tap()
 
         let shareButton = app.buttons["shareCardShare"]

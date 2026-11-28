@@ -38,6 +38,7 @@ struct QuranTabView: View {
     @State private var showsReciters = false
     @State private var showsPlayer = false
     @State private var showsGoTo = false
+    @State private var goToTarget: QuranReaderTarget?
 
     init() {
         _listen = StateObject(wrappedValue: QuranListenModel(catalog: ListenCatalogFactory.live()))
@@ -70,10 +71,16 @@ struct QuranTabView: View {
                         }
                     }
                 }
-                .sheet(isPresented: $showsGoTo) {
+                .sheet(isPresented: $showsGoTo, onDismiss: {
+                    if let target = goToTarget {
+                        goToTarget = nil
+                        path.append(target)
+                    }
+                }) {
                     if case .loaded(let data) = quran.state {
                         QuranGoToSheet(data: data) { target in
-                            path.append(target)
+                            goToTarget = target
+                            showsGoTo = false
                         }
                         .presentationDetents([.large])
                     }

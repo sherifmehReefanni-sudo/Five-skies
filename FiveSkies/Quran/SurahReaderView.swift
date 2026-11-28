@@ -407,6 +407,10 @@ struct SurahReaderView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
             proxy.scrollTo(target, anchor: .top)
         }
+        // A far jump in a lazy list can land short while rows above are still sizing.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+            proxy.scrollTo(target, anchor: .top)
+        }
     }
 
     /// Remembers the top-most ayah once the scroll has rested on it for a moment.
