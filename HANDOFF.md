@@ -325,3 +325,25 @@ Two fixes for round E3 (not blockers for build 10):
 2. There are now two stores for the same thing: `MemorizeProgressStore` (the old Memorize screen in More, in the backup list) and `KnownAyahsStore` ("memorize.knownAyahs", not in the backup list). When Memorize moves to Learn in E3, keep one store, carry the old marks over, and put it in the iCloud backup. Replace, do not layer.
 To check on a phone: the card grows to 180 pt when hidden, so short ayahs may make the list jump when a turn starts.
 TestFlight run 10 failed: Apple's limit on development certificates (each CI Mac made one). With Reef's yes (02:18 ET), `tools/asc_clean_dev_certs.py` now runs before each archive and revokes only development certificates named "Created via API" (first run revoked 10 of 10). TestFlight run 46120660373 succeeded: build 0.1.0 (11), commit 43f8beb, same app code as e0667d7. There is no build 10.
+
+## Round E3 status (Nov 28, 2026, 04:10 ET, Opus)
+
+Built per docs/READER_EASE_PLAN.md round E3: three parallel builders plus lead. CI green (af28c44), first compile.
+- Learn tab: Today | Quran | Learn | Qibla | More (`FiveSkies/Learn/LearnTabView.swift`). Cards: Review, Start here, Memorize (moved from More, More tile removed), Common words, Reading plan.
+- Fable fix 2 done: one store, `MemorizeProgressStore` (`FiveSkies/Learn/Memorize/`, key "memorizeProgress", in the iCloud backup). The E2 reader's "memorize.knownAyahs" marks migrate in once and the key is removed. `KnownAyahsStore` deleted.
+- Fable fix 1 done: the Your turn cover's Known button toggles, and the toolbar's More menu shows "Remove known mark" on known ayahs.
+- L3 Review (`FiveSkies/Learn/Review/`): marking known brings the ayah back the next day, then 3, 7, 14, 30, 30 days on each "I remembered it"; "Needs practice" goes back to tomorrow. No failure counts.
+- L5 Start here (`FiveSkies/Learn/Path/`): surahs 1, 112, 113, 114, then 111 down to 103. The order after the first four is Opus's pick, UNVERIFIED. Learn opens the reader in the Memorize preset.
+- L4 Common words (`FiveSkies/Learn/Words/`): counted on the device from the bundled text with the W2 splitter. Python mirror on the bundled files: 77,433 words, 20,718 written forms, top 100 = 29%.
+- C5 Reading plan (`FiveSkies/Learn/ReadingPlan/`): 30, 60, 365 days or pages per day; portion = pages left / days left, so skipped days re-spread; keys "readingPlan." added to the backup prefixes.
+Screenshots looked at: learn-tab, start-here, reading-plan, learn-review, review-card, common-words, common-word-detail, memorize.
+
+Not built this round, and why:
+- Duas from the Quran: needs the verse keys of handoff items 1, 3, 5, 8 and 14. Reading the dua JSON was blocked (the file must not be loaded), so FABLE or Reef should list the keys in this file; then it is a manifest of keys only.
+- Tafsir: needs the English list from `resources/tafsirs` on prelive, which takes a probe on Reef's PC. Default tafsir stays a FABLE decision.
+
+FABLE, decisions to look at in the next review (none blocks the build):
+1. Common words count a word with an attached pause sign as its own form (2,730 such forms, per W2). Letters only would give 18,993 forms and 30% for the top 100.
+2. Start here order after Al-Faatiha and the last three surahs.
+3. Review schedule starts at 1 day on marking known, then 3, 7, 14, 30.
+Next: TestFlight build 12 needs Reef's yes. Then round E4 (New to Islam).
