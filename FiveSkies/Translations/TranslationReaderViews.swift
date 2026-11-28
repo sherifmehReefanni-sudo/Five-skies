@@ -40,66 +40,6 @@ struct TranslationAttributionFooter: View {
     }
 }
 
-/// The "Translation" row of the reader's "Aa" sheet, with the "Transliteration" switch under it.
-struct TranslationSettingsRow: View {
-    @EnvironmentObject private var translations: TranslationStore
-    @State private var showsPicker = false
-
-    init() {}
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            translationButton
-            TransliterationToggleRow()
-        }
-    }
-
-    private var translationButton: some View {
-        Button {
-            showsPicker = true
-        } label: {
-            HStack(spacing: 8) {
-                Text("Translation")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                Spacer()
-                Text(verbatim: currentName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(MorePalette.secondaryText)
-                    .lineLimit(1)
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.bold))
-                    .foregroundStyle(MorePalette.secondaryText)
-                    .accessibilityHidden(true)
-            }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 14)
-            .moreGlass(.light, cornerRadius: 18)
-            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        }
-        .buttonStyle(PressScaleButtonStyle(pressedScale: 0.98))
-        .accessibilityLabel(Text("Translation"))
-        .accessibilityValue(Text(verbatim: currentName))
-        .accessibilityHint(Text("Choose a translation to show under each ayah"))
-        .accessibilityIdentifier("translationSettingsRow")
-        .sheet(isPresented: $showsPicker) {
-            TranslationPickerView()
-                .environmentObject(translations)
-                .presentationDetents([.large])
-        }
-    }
-
-    private var currentName: String {
-        if let loaded = translations.loaded, loaded.summary.id == translations.selectedID {
-            return loaded.summary.name
-        }
-        if let id = translations.selectedID, let summary = translations.summary(for: id) {
-            return summary.name
-        }
-        return translations.isConnected ? "None" : "Coming soon"
-    }
-}
-
 // MARK: - Transliteration (W6, D6)
 
 /// A transliteration line under an ayah, placed above the translation (W6 order).
@@ -150,7 +90,7 @@ struct TransliterationAttributionFooter: View {
 }
 
 /// The "Transliteration" switch of the reader's "Aa" sheet, with its source.
-/// Already shown inside `TranslationSettingsRow()`, so the Aa sheet gets it with no change.
+/// Shown in the reader's Reading sheet (`ReadingSettingsSheet`).
 struct TransliterationToggleRow: View {
     @EnvironmentObject private var translations: TranslationStore
 

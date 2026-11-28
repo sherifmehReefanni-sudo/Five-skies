@@ -17,11 +17,13 @@ struct SurahReaderView: View {
     @EnvironmentObject private var bookmarks: QuranBookmarksStore
     @EnvironmentObject private var lastRead: QuranLastReadStore
     @EnvironmentObject private var translations: TranslationStore
+    @EnvironmentObject private var navigator: QuranNavigator
 
     @AppStorage(SurahReaderView.textSizeKey) private var textSize: Double = SurahReaderView.defaultTextSize
+    @AppStorage(ReadingPreferences.showsTranslationKey) private var showsTranslation: Bool = ReadingPreferences.defaultShowsTranslation
 
-    @State private var selectedAyah: Ayah?
-    @State private var showsActions = false
+    /// The ayah whose toolbar is showing (E1.1).
+    @State private var toolbarItem: AyahToolbarItem?
     @State private var showsTextSize = false
     @State private var shareItem: QuranShareItem?
     @State private var shareCardAyah: Ayah?
@@ -59,14 +61,14 @@ struct SurahReaderView: View {
                     Text("Aa")
                         .font(.headline.weight(.heavy))
                 }
-                .accessibilityLabel("Text size")
+                .accessibilityLabel("Reading settings")
                 .accessibilityIdentifier("readerTextSize")
             }
         }
         .sheet(isPresented: $showsTextSize) {
-            ReaderTextSizeSheet(size: $textSize)
+            ReadingSettingsSheet()
                 .environmentObject(translations)
-                .presentationDetents([.height(420), .medium, .large])
+                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
         .onDisappear {
@@ -77,10 +79,6 @@ struct SurahReaderView: View {
         }
     }
 
-    private var dialogTitle: String {
-        guard let selectedAyah else { return "Ayah" }
-        return "Ayah \(selectedAyah.number)"
-    }
 
     private func clampedTextSize() -> CGFloat {
         CGFloat(min(max(textSize, Self.textSizeRange.lowerBound), Self.textSizeRange.upperBound))
@@ -115,15 +113,18 @@ struct SurahReaderView: View {
                             .onDisappear { visibleAyahs.remove(ayah.number) }
                     }
 
+                    surahNavigation(current: sura.number, data: data)
+                        .padding(.top, 4)
+
                     TransliterationAttributionFooter()
                         .padding(.top, 8)
-                    if let loaded = translations.loaded {
+                    if let loaded = translations.loaded, showsTranslation {
                         TranslationAttributionFooter(
                             summary: loaded.summary,
                             needsRefresh: translations.needsRefresh(loaded.summary)
                         )
                         .padding(.top, 8)
-                    } else {
+                    } else if translations.loaded == nil {
                         Text(translations.isConnected ? "Choose a translation in Aa. Tafsir is coming soon." : "Translations and tafsir are coming soon.")
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(MorePalette.secondaryText)
@@ -166,47 +167,43 @@ struct SurahReaderView: View {
         }
         .quranSkyBackground()
         .foregroundStyle(.white)
-        .confirmationDialog(
-            dialogTitle,
-            isPresented: $showsActions,
-            titleVisibility: .visible,
-            presenting: selectedAyah
-        ) { ayah in
-            if let listen, listen.offersPlayback {
-                Button(QuranListenModel.playFromAyahTitle(startsAtBeginning: playFromStartsAtBeginning)) {
-                    playFromRequest = ayah.number
-                }
-                .accessibilityIdentifier("ayahPlayFrom")
-            }
-            if bookmarks.contains(ayah.ref) {
-                Button("Remove bookmark") {
-                    bookmarks.remove(ayah.ref)
-                }
-            } else {
-                Button("Bookmark") {
-                    bookmarks.add(ayah.ref)
-                }
-            }
-            Button("Copy") {
-                UIPasteboard.general.string = Self.shareText(for: ayah)
-            }
-            Button("Share") {
-                let text = Self.shareText(for: ayah)
-                // Let the dialog finish closing before the share sheet opens.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    shareItem = QuranShareItem(text: text)
-                }
-            }
-            Button("Share as image") {
-                // Let the dialog finish closing before the card sheet opens.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    shareCardAyah = ayah
-                }
-            }
-            Button("Mark as last read") {
-                lastRead.update(ayah.ref)
-            }
-            Button("Cancel", role: .cancel) {}
+        .ayahToolbar(item: $toolbarItem) { item in
+            let ref = AyahRef(sura: item.sura, aya: item.ayah)
+            let ayah = data.ayahs(inSura: item.sura).first { $0.number == item.ayah }
+            return AyahToolbar(
+                title: AyahToolbarText.title(suraName: sura.transliteratedName, ayah: item.ayah),
+                isBookmarked: bookmarks.contains(ref),
+                playTitle: AyahToolbarText.playTitle(
+                    offersPlayback: listen?.offersPlayback ?? false,
+                    startsAtBeginning: playFromStartsAtBeginning
+                ),
+                actions: AyahToolbarActions(
+                    play: { playFromRequest = item.ayah },
+                    toggleBookmark: {
+                        if bookmarks.contains(ref) {
+                            bookmarks.remove(ref)
+                        } else {
+                            bookmarks.add(ref)
+                        }
+                    },
+                    share: {
+                        if let ayah {
+                            shareItem = QuranShareItem(text: Self.shareText(for: ayah))
+                        }
+                    },
+                    copy: {
+                        if let ayah {
+                            UIPasteboard.general.string = Self.shareText(for: ayah)
+                        }
+                    },
+                    shareAsImage: { shareCardAyah = ayah },
+                    markLastRead: {
+                        lastRead.update(ref)
+                        ContinueStore.shared.noteReading(sura: item.sura, ayah: item.ayah, at: Date())
+                    }
+                ),
+                onClose: {}
+            )
         }
         .sheet(item: $shareItem) { item in
             QuranActivityView(items: [item.text])
@@ -215,6 +212,49 @@ struct SurahReaderView: View {
         .sheet(item: $shareCardAyah) { ayah in
             ShareCardView(ayah: ayah, sura: sura)
         }
+    }
+
+    // MARK: - Moving between surahs (E1.2 c)
+
+    private func surahNavigation(current: Int, data: QuranData) -> some View {
+        HStack(spacing: 10) {
+            if current > 1, let previous = data.sura(current - 1) {
+                surahStep(title: "Previous", name: previous.transliteratedName, symbol: "chevron.left",
+                          identifier: "readerPreviousSurah") {
+                    navigator.open(QuranReaderTarget(sura: current - 1, aya: nil))
+                }
+            }
+            if current < 114, let next = data.sura(current + 1) {
+                surahStep(title: "Next surah", name: next.transliteratedName, symbol: "chevron.right",
+                          identifier: "readerNextSurah") {
+                    navigator.open(QuranReaderTarget(sura: current + 1, aya: nil))
+                }
+            }
+        }
+    }
+
+    private func surahStep(title: String, name: String, symbol: String, identifier: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 2) {
+                HStack(spacing: 4) {
+                    if symbol == "chevron.left" { Image(systemName: symbol) }
+                    Text(title)
+                    if symbol == "chevron.right" { Image(systemName: symbol) }
+                }
+                .font(.caption.weight(.heavy))
+                .foregroundStyle(QuranPalette.gold)
+                Text(verbatim: name)
+                    .font(.headline.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .frame(maxWidth: .infinity, minHeight: 64)
+            .moreGlass(.dark, cornerRadius: 20)
+        }
+        .buttonStyle(PressScaleButtonStyle(pressedScale: 0.97))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(verbatim: "\(title): \(name)"))
+        .accessibilityIdentifier(identifier)
     }
 
     // MARK: - Header
@@ -236,6 +276,22 @@ struct SurahReaderView: View {
             Text(verbatim: "\(sura.englishName) · \(sura.ayahCount) ayahs")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(MorePalette.secondaryText)
+            if listen?.offersPlayback == true {
+                Button {
+                    playFromRequest = 1
+                } label: {
+                    Label("Play", systemImage: "play.fill")
+                        .font(.subheadline.weight(.heavy))
+                        .foregroundStyle(MorePalette.ink)
+                        .padding(.horizontal, 18)
+                        .frame(minHeight: 40)
+                        .background(Capsule().fill(MorePalette.goldGradient))
+                }
+                .buttonStyle(PressScaleButtonStyle(pressedScale: 0.95))
+                .padding(.top, 8)
+                .accessibilityLabel("Play this surah")
+                .accessibilityIdentifier("readerHeaderPlay")
+            }
         }
         .multilineTextAlignment(.center)
         .padding(.horizontal, 16)
@@ -249,13 +305,13 @@ struct SurahReaderView: View {
     private func ayahButton(_ ayah: Ayah, data: QuranData, size: CGFloat) -> some View {
         let isBookmarked = bookmarks.contains(ayah.ref)
         let captions = Self.captions(for: ayah.ref, in: data)
-        let translation = translations.text(for: ayah.sura, aya: ayah.number)
+        let translation = showsTranslation ? translations.text(for: ayah.sura, aya: ayah.number) : nil
         let transliteration = translations.showsTransliteration
             ? translations.transliteration(for: ayah.sura, aya: ayah.number)
             : nil
         return Button {
-            selectedAyah = ayah
-            showsActions = true
+            let tapped = AyahToolbarItem(sura: ayah.sura, ayah: ayah.number)
+            toolbarItem = toolbarItem == tapped ? nil : tapped
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 FollowAlongAyahText(ayah: ayah, followAlong: followAlong, size: size)
@@ -295,7 +351,7 @@ struct SurahReaderView: View {
         .quranFadeIn()
         .accessibilityLabel(Text(verbatim: Self.ayahAccessibilityLabel(ayah: ayah.number, captions: captions, bookmarked: isBookmarked)))
         .accessibilityValue(Text(verbatim: Self.ayahAccessibilityValue(arabic: ayah.displayText, transliteration: transliteration, translation: translation)))
-        .accessibilityHint("Shows bookmark, copy and share")
+        .accessibilityHint("Shows play, bookmark and share")
         .accessibilityIdentifier("ayah-\(ayah.number)")
     }
 
@@ -362,6 +418,7 @@ struct SurahReaderView: View {
             try? await Task.sleep(nanoseconds: 1_200_000_000)
             guard !Task.isCancelled, let top = visibleAyahs.min() else { return }
             lastRead.update(AyahRef(sura: sura, aya: top))
+            ContinueStore.shared.noteReading(sura: sura, ayah: top, at: Date())
         }
     }
 }
@@ -382,56 +439,6 @@ struct QuranActivityView: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
-/// The "Aa" sheet: Arabic text size and the translation choice.
-struct ReaderTextSizeSheet: View {
-    @Binding var size: Double
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Reading")
-                .font(.title3.weight(.heavy))
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityIdentifier("textSizeTitle")
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Arabic text size")
-                        .font(.headline)
-                    Spacer()
-                    Text(verbatim: "\(Int(size.rounded())) pt")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(MorePalette.secondaryText)
-                        .accessibilityHidden(true)
-                }
-                Slider(
-                    value: $size,
-                    in: SurahReaderView.textSizeRange,
-                    step: 1
-                ) {
-                    Text("Arabic text size")
-                } minimumValueLabel: {
-                    Text("A")
-                        .font(.footnote.weight(.bold))
-                        .accessibilityHidden(true)
-                } maximumValueLabel: {
-                    Text("A")
-                        .font(.title2.weight(.bold))
-                        .accessibilityHidden(true)
-                }
-                .accessibilityValue(Text(verbatim: "\(Int(size.rounded())) points"))
-                .accessibilityIdentifier("textSizeSlider")
-            }
-
-            TranslationSettingsRow()
-
-            Spacer(minLength: 0)
-        }
-        .foregroundStyle(.white)
-        .padding(20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(MorePalette.ink.ignoresSafeArea())
-    }
-}
 
 /// The Arabic of one ayah, drawn from the stored string exactly as it is (rule W1).
 /// While this surah plays, the current word is drawn in gold, or the whole ayah is marked when

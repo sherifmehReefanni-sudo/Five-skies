@@ -30,7 +30,12 @@ final class ListenUITests: XCTestCase {
 
         let open = app.buttons["nowPlayingOpen"]
         XCTAssertTrue(open.waitForExistence(timeout: 10), "The now playing bar has no open button")
+        // From the list, the bar opens the reader at the playing ayah; there it opens the player.
         open.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["readerTitle"].waitForExistence(timeout: 20), "The bar did not open the reader")
+        let openInReader = app.buttons["nowPlayingOpen"]
+        XCTAssertTrue(openInReader.waitForExistence(timeout: 10), "The now playing bar is missing in the reader")
+        openInReader.tap()
         XCTAssertTrue(app.buttons["playerPlayPause"].waitForExistence(timeout: 20), "The player sheet did not open")
         XCTAssertTrue(app.descendants(matching: .any)["playerCredit"].exists, "The credit line is missing from the player")
         attachScreenshot(named: "listen-player")
@@ -91,8 +96,8 @@ final class ListenUITests: XCTestCase {
         ayah.tap()
 
         // Dialog buttons may not keep their identifier, so the label prefix is the fallback.
-        let byIdentifier = app.buttons.matching(identifier: "ayahPlayFrom").firstMatch
-        let byLabel = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Play from this ayah")).firstMatch
+        let byIdentifier = app.buttons.matching(identifier: "toolbarPlay").firstMatch
+        let byLabel = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Play from")).firstMatch
         var found = false
         let deadline = Date().addingTimeInterval(10)
         while !found && Date() < deadline {
@@ -101,7 +106,7 @@ final class ListenUITests: XCTestCase {
                 Thread.sleep(forTimeInterval: 0.25)
             }
         }
-        XCTAssertTrue(found, "The ayah dialog has no Play from this ayah button")
+        XCTAssertTrue(found, "The ayah toolbar has no Play button")
         if byIdentifier.exists {
             byIdentifier.tap()
         } else {

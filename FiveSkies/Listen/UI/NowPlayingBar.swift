@@ -44,7 +44,7 @@ struct NowPlayingBar: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text(verbatim: accessibilityText))
-            .accessibilityHint("Opens the player")
+            .accessibilityHint("Shows the playing ayah, or the player when you are already there")
             .accessibilityIdentifier("nowPlayingOpen")
 
             ListenPlayPauseButton(size: 44, identifier: "nowPlayingPlayPause")

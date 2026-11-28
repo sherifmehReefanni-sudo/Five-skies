@@ -17,6 +17,8 @@ struct FiveSkiesApp: App {
     @StateObject private var listenPlayer: ListenPlayer
     /// True until the first-run flow closes, so Today does not ask for location behind it.
     @State private var firstRunPending = OnboardingGate.live().shouldShow
+    /// Lets any screen open the reader at an ayah and bring the Quran tab forward.
+    @StateObject private var navigator = QuranNavigator()
 
     private let launch: LaunchOptions
     private let service: PrayerTimesService
@@ -63,7 +65,7 @@ struct FiveSkiesApp: App {
 
     var body: some Scene {
         WindowGroup {
-            TabView {
+            TabView(selection: $navigator.selectedTab) {
                 TodayView(
                     location: location,
                     service: service,
@@ -73,21 +75,25 @@ struct FiveSkiesApp: App {
                 .tabArrival()
                 .legibleTabBar()
                 .tabItem { Label("Today", systemImage: "sun.max") }
+                .tag(AppTab.today)
 
                 QuranTabView()
                     .tabArrival()
                     .legibleTabBar()
                     .tabItem { Label("Quran", systemImage: "book") }
+                    .tag(AppTab.quran)
 
                 QiblaTabView()
                     .tabArrival()
                     .legibleTabBar()
                     .tabItem { Label("Qibla", systemImage: "safari") }
+                    .tag(AppTab.qibla)
 
                 MoreTabView()
                     .tabArrival()
                     .legibleTabBar()
                     .tabItem { Label("More", systemImage: "ellipsis.circle") }
+                    .tag(AppTab.more)
             }
             .firstRunFlow(location: location) { firstRunPending = false }
             .whatsNewSheet()
@@ -102,6 +108,7 @@ struct FiveSkiesApp: App {
                 service: service
             ))
             .modifier(SignatureStarLifecycle(controller: signatureStar))
+            .modifier(ContinueListeningNote(player: listenPlayer))
             .modifier(PrayerPauseWiring(arrivals: arrivals, player: listenPlayer, settings: settings, location: location))
             .modifier(MotionEnvironment(
                 isFixedPhase: launch.fixedPhase != nil,
@@ -116,6 +123,7 @@ struct FiveSkiesApp: App {
             .environmentObject(translations)
             .environmentObject(signatureStar)
             .environmentObject(listenPlayer)
+            .environmentObject(navigator)
         }
     }
 }
@@ -149,6 +157,25 @@ private struct NotificationRefresh: ViewModifier {
             preferences: settings.alertPreferences,
             now: clock.now()
         )
+    }
+}
+
+/// Notes each surah that starts playing for Today's continue card.
+private struct ContinueListeningNote: ViewModifier {
+    @ObservedObject var player: ListenPlayer
+    @Environment(\.appClock) private var clock
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: player.item) { _, item in
+                guard let item else { return }
+                ContinueStore.shared.noteListening(
+                    sura: item.chapter,
+                    ayah: player.currentAyah,
+                    reciterName: item.reciter.name,
+                    at: clock.now()
+                )
+            }
     }
 }
 

@@ -25,12 +25,17 @@ enum QuranPalette {
         startPoint: .top,
         endPoint: .bottom
     )
+
+    /// The "Plain dark" reading background: a calm near-black navy, one flat colour,
+    /// so long reading has nothing behind the text. The text colours stay the same.
+    static let plainDark = Color(hex: 0x0B1122)
 }
 
 extension View {
-    /// Paints the Quran night sky behind the view, edge to edge.
+    /// Paints the Quran background behind the view, edge to edge: the night sky, or plain dark
+    /// when the person chose that in the Reading sheet ("reading.background").
     func quranSkyBackground() -> some View {
-        background(QuranPalette.sky.ignoresSafeArea())
+        modifier(QuranReadingBackgroundModifier())
     }
 
     /// Tells VoiceOver which language the text below is in.
@@ -50,6 +55,29 @@ extension View {
     /// A gentle fade in the first time the view appears. Off when motion is off.
     func quranFadeIn() -> some View {
         modifier(QuranFadeInModifier())
+    }
+}
+
+/// Follows the saved reading background, so every Quran screen changes as soon as it is picked.
+private struct QuranReadingBackgroundModifier: ViewModifier {
+    @AppStorage(ReadingPreferences.backgroundKey) private var choice: QuranBackground = ReadingPreferences.defaultBackground
+
+    func body(content: Content) -> some View {
+        content.background(QuranBackgroundFill(background: choice).ignoresSafeArea())
+    }
+}
+
+/// The fill for one reading background. Also used for the swatches in the Reading sheet.
+struct QuranBackgroundFill: View {
+    let background: QuranBackground
+
+    var body: some View {
+        switch background {
+        case .sky:
+            QuranPalette.sky
+        case .plainDark:
+            QuranPalette.plainDark
+        }
     }
 }
 

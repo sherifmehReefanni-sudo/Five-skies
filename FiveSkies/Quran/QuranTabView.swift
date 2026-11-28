@@ -27,6 +27,7 @@ enum QuranListMode: String, CaseIterable, Identifiable {
 /// bottom here and in the reader. Reading silently works with nothing playing.
 struct QuranTabView: View {
     @EnvironmentObject private var quran: QuranStore
+    @EnvironmentObject private var navigator: QuranNavigator
     @StateObject private var bookmarks = QuranBookmarksStore()
     @StateObject private var lastRead = QuranLastReadStore()
     @StateObject private var listen: QuranListenModel
@@ -36,6 +37,7 @@ struct QuranTabView: View {
     @State private var query = ""
     @State private var showsReciters = false
     @State private var showsPlayer = false
+    @State private var showsGoTo = false
 
     init() {
         _listen = StateObject(wrappedValue: QuranListenModel(catalog: ListenCatalogFactory.live()))
@@ -53,6 +55,29 @@ struct QuranTabView: View {
                 }
                 .navigationTitle("Quran")
                 .navigationBarTitleDisplayMode(.large)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        if case .loaded = quran.state {
+                            Button {
+                                showsGoTo = true
+                            } label: {
+                                Label("Go to", systemImage: "arrow.right.circle")
+                                    .labelStyle(.titleAndIcon)
+                                    .font(.subheadline.weight(.heavy))
+                            }
+                            .accessibilityHint("Jump to a surah, an ayah such as 2:255, a page or a juz")
+                            .accessibilityIdentifier("quranGoTo")
+                        }
+                    }
+                }
+                .sheet(isPresented: $showsGoTo) {
+                    if case .loaded(let data) = quran.state {
+                        QuranGoToSheet(data: data) { target in
+                            path.append(target)
+                        }
+                        .presentationDetents([.large])
+                    }
+                }
                 .navigationDestination(for: QuranReaderTarget.self) { target in
                     // Passed as a plain reference, so the reader does not redraw when the model changes.
                     SurahReaderView(suraNumber: target.sura, initialAyah: target.aya, listen: listen)
@@ -68,6 +93,12 @@ struct QuranTabView: View {
         }
         .environmentObject(bookmarks)
         .environmentObject(lastRead)
+        .onChange(of: navigator.pending, initial: true) { _, target in
+            // Continue card, the now playing bar and Go to land here: show that ayah.
+            guard let target else { return }
+            path = [target]
+            navigator.pending = nil
+        }
         .modifier(QuranListenHost(model: listen, showsReciters: $showsReciters, showsPlayer: $showsPlayer))
     }
 

@@ -2,6 +2,7 @@ import Foundation
 
 /// Filters the sura list by number, transliterated name or English meaning.
 /// Only the Latin names are folded for matching; nothing shown on screen is changed.
+/// Spelling differences ("baqarah", "yasin") are forgiven with the same keys Go to uses.
 enum QuranSearch {
     static func filter(_ suras: [Sura], query: String) -> [Sura] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -11,8 +12,11 @@ enum QuranSearch {
         }
         let needle = fold(trimmed)
         guard !needle.isEmpty else { return [] }
+        let looseKeys = QuranNameKey.keys(trimmed)
         return suras.filter { sura in
-            fold(sura.transliteratedName).contains(needle) || fold(sura.englishName).contains(needle)
+            fold(sura.transliteratedName).contains(needle)
+                || fold(sura.englishName).contains(needle)
+                || QuranNameKey.looselyContains(looseKeys, sura: sura)
         }
     }
 

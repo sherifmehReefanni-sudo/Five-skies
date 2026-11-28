@@ -135,6 +135,8 @@ private struct TodayScreen: View {
                 .padding(.top, 12)
                 .padding(.horizontal, 16)
                 Spacer(minLength: 16)
+                ContinueCard(now: now)
+                    .riseIn(revealed: revealed, delay: 0.2)
                 DayCardsView(now: now, timeZone: timeZone)
                     .riseIn(revealed: revealed, delay: 0.24)
                 TrackerChipsView(now: now)

@@ -5,6 +5,7 @@ import SwiftUI
 /// The credit line is on every bar (D9).
 struct QuranPlayBar: View {
     @EnvironmentObject private var player: ListenPlayer
+    @EnvironmentObject private var navigator: QuranNavigator
     @ObservedObject var model: QuranListenModel
 
     /// The surah open in the reader, or nil on the surah list.
@@ -28,12 +29,22 @@ struct QuranPlayBar: View {
                     playSurahCard(reciter: offer.reciter, chapter: offer.chapter, name: offer.name)
                 }
                 if let item = player.item {
-                    NowPlayingBar(item: item, onOpen: onOpenPlayer)
+                    // From anywhere else, the bar takes you to the playing ayah (U4);
+                    // inside that surah's reader it opens the full player.
+                    NowPlayingBar(item: item, onOpen: { openFromBar(item) })
                 }
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
             .sensoryFeedback(.impact(weight: .light), trigger: taps)
+        }
+    }
+
+    private func openFromBar(_ item: NowPlayingItem) {
+        if readerSura == item.chapter {
+            onOpenPlayer()
+        } else {
+            navigator.open(QuranReaderTarget(sura: item.chapter, aya: player.currentAyah))
         }
     }
 
