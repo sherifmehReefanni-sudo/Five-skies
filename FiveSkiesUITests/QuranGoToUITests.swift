@@ -36,24 +36,16 @@ final class QuranGoToUITests: XCTestCase {
         XCTAssertTrue(go.isEnabled, "Go button is not enabled")
         go.tap()
 
-        // The reader scrolls to ayah 255, so its header may be off screen and not loaded.
-        // The inline navigation title carries the same name.
-        let header = app.descendants(matching: .any)["readerTitle"]
-        let navigationBar = app.navigationBars["Al-Baqara"]
-        let deadline = Date().addingTimeInterval(20)
-        var titleShown = false
-        while Date() < deadline {
-            if (header.exists && header.label == "Al-Baqara") || navigationBar.exists {
-                titleShown = true
-                break
-            }
-            _ = navigationBar.waitForExistence(timeout: 1)
-        }
-        XCTAssertTrue(titleShown, "The reader did not open at Al-Baqara")
-        if header.exists {
-            XCTAssertEqual(header.label, "Al-Baqara")
-        }
-        XCTAssertTrue(app.buttons["ayah-255"].waitForExistence(timeout: 10), "Ayah 255 did not appear")
+        // The reader scrolls to ayah 255, so its header may scroll away mid check.
+        // Match on identifier and label together so nothing reads a vanishing element.
+        XCTAssertTrue(app.buttons["ayah-255"].waitForExistence(timeout: 20), "Ayah 255 did not appear")
+        let titled = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == 'readerTitle' AND label == 'Al-Baqara'"))
+            .firstMatch
+        XCTAssertTrue(
+            app.navigationBars["Al-Baqara"].exists || titled.exists,
+            "The reader did not open at Al-Baqara"
+        )
         attachScreenshot(named: "goto-reader")
     }
 
