@@ -246,3 +246,5 @@ Commit fd7c80f, CI passing.
 - Condition 2: `RelayTimingProvider` drops an entry after 24 hours (`maxAge`), memory only; unit test added.
 Condition 3 (production W4 for all 114 surahs and the letter-count probe) stays open until production access.
 Next: TestFlight for C1 needs Reef's yes.
+
+TestFlight run 46086121329 (Reef yes, 19:06 ET) succeeded: build 0.1.0 (7) with round C1 (Quran and Listen merged, play modes, pause for prayer, follow along on surahs 1 and 2). Next: Reef checks it on his phone, then round C2 (Learn tab) per docs/LEARN_LISTEN_PLAN.md.
