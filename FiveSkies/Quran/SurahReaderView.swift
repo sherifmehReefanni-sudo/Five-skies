@@ -39,6 +39,13 @@ struct SurahReaderView: View {
     @State private var playFromStartsAtBeginning = false
     /// The ayah picked in "Play from this ayah", handed to `ReaderListenWatcher`.
     @State private var playFromRequest: Int?
+    /// Memorize: the ayah whose turn it is, hidden until the listener peeks (E2.1).
+    @State private var hiddenAyah: Int?
+    @State private var peekedAyah: Int?
+    @ObservedObject private var known = KnownAyahsStore.shared
+    /// The ayah whose Words sheet is open (E2.2).
+    @State private var wordsAyah: Ayah?
+    @State private var wordsProvider: (any AyahWordsProviding)? = AyahWordsProviderFactory.live()
 
     var body: some View {
         Group {
@@ -143,6 +150,10 @@ struct SurahReaderView: View {
             }
             // Separate watchers, so the reader itself does not redraw on every player update.
             .background(FollowAlongTimingsWatcher(chapter: sura.number, ayahs: ayahs, followAlong: $followAlong))
+            .background(MemorizeTurnWatcher(chapter: sura.number, hiddenAyah: $hiddenAyah))
+            .onChange(of: hiddenAyah) { _, _ in
+                peekedAyah = nil
+            }
             .background(
                 ReaderListenWatcher(
                     chapter: sura.number,
@@ -200,7 +211,8 @@ struct SurahReaderView: View {
                     markLastRead: {
                         lastRead.update(ref)
                         ContinueStore.shared.noteReading(sura: item.sura, ayah: item.ayah, at: Date())
-                    }
+                    },
+                    words: { wordsAyah = ayah }
                 ),
                 onClose: {}
             )
@@ -211,6 +223,14 @@ struct SurahReaderView: View {
         }
         .sheet(item: $shareCardAyah) { ayah in
             ShareCardView(ayah: ayah, sura: sura)
+        }
+        .sheet(item: $wordsAyah) { ayah in
+            AyahWordsSheetHost(
+                ayah: ayah,
+                title: AyahToolbarText.title(suraName: sura.transliteratedName, ayah: ayah.number),
+                provider: wordsProvider
+            )
+            .presentationDetents([.medium, .large])
         }
     }
 
@@ -309,15 +329,20 @@ struct SurahReaderView: View {
         let transliteration = translations.showsTransliteration
             ? translations.transliteration(for: ayah.sura, aya: ayah.number)
             : nil
+        // Memorize hides the Arabic with opacity only: same string, same drawing path.
+        let isHidden = hiddenAyah == ayah.number && peekedAyah != ayah.number
+        let isKnown = known.contains(ayah.ref)
         return Button {
             let tapped = AyahToolbarItem(sura: ayah.sura, ayah: ayah.number)
             toolbarItem = toolbarItem == tapped ? nil : tapped
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 FollowAlongAyahText(ayah: ayah, followAlong: followAlong, size: size)
+                    .opacity(isHidden ? 0 : 1)
 
                 if let line = transliteration {
                     AyahTransliterationText(text: line)
+                        .opacity(isHidden ? 0 : 1)
                 }
 
                 if let translation {
@@ -334,6 +359,12 @@ struct SurahReaderView: View {
                             .background(Capsule().fill(Color.white.opacity(0.1)))
                     }
                     Spacer(minLength: 4)
+                    if isKnown {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.footnote)
+                            .foregroundStyle(QuranPalette.gold)
+                            .accessibilityLabel("Known")
+                    }
                     if isBookmarked {
                         Image(systemName: "bookmark.fill")
                             .font(.footnote)
@@ -343,16 +374,31 @@ struct SurahReaderView: View {
                 }
             }
             .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: isHidden ? 180 : nil, alignment: .topLeading)
             .moreGlass(.dark, cornerRadius: 24)
             .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         }
         .buttonStyle(.plain)
+        .disabled(isHidden)
         .quranFadeIn()
         .accessibilityLabel(Text(verbatim: Self.ayahAccessibilityLabel(ayah: ayah.number, captions: captions, bookmarked: isBookmarked)))
         .accessibilityValue(Text(verbatim: Self.ayahAccessibilityValue(arabic: ayah.displayText, transliteration: transliteration, translation: translation)))
         .accessibilityHint("Shows play, bookmark and share")
         .accessibilityIdentifier("ayah-\(ayah.number)")
+        .accessibilityHidden(isHidden)
+        .overlay {
+            if isHidden {
+                MemorizeTurnCover(
+                    ayah: ayah.number,
+                    isKnown: isKnown,
+                    onPeek: { peekedAyah = ayah.number },
+                    onKnown: {
+                        known.markKnown(ayah.ref)
+                        peekedAyah = ayah.number
+                    }
+                )
+            }
+        }
     }
 
     /// The Arabic as stored, then the transliteration and the translation when they are shown.
@@ -690,5 +736,24 @@ private struct ReaderFollowPill: View {
         .accessibilityLabel("Follow the recitation")
         .accessibilityHint("Scrolls to the ayah being recited and keeps it in view")
         .accessibilityIdentifier("readerFollow")
+    }
+}
+
+/// Hands the Words sheet a way to pause the recitation, without the reader observing the player.
+private struct AyahWordsSheetHost: View {
+    let ayah: Ayah
+    let title: String
+    let provider: (any AyahWordsProviding)?
+
+    @EnvironmentObject private var player: ListenPlayer
+
+    var body: some View {
+        AyahWordsSheet(
+            ayah: ayah,
+            storedText: ayah.displayText,
+            title: title,
+            provider: provider,
+            pauseRecitation: { player.pause() }
+        )
     }
 }

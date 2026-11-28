@@ -326,7 +326,14 @@ struct QuranListenHost: ViewModifier {
                 ListenReciterPicker(model: model)
             }
             .sheet(isPresented: $showsPlayer) {
-                ListenPlayerSheet(sleepChoice: $sleepChoice, hasTranslation: translations.selectedID != nil)
+                ListenPlayerSheet(
+                    sleepChoice: $sleepChoice,
+                    hasTranslation: translations.selectedID != nil,
+                    onReadingAids: {
+                        UserDefaults.standard.set(true, forKey: ReadingPreferences.showsTranslationKey)
+                        translations.showsTransliteration = true
+                    }
+                )
                     .environmentObject(player)
                     .environmentObject(quran)
             }

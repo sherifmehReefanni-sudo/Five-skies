@@ -9,6 +9,8 @@ struct ListenPlayerSheet: View {
     @Binding var sleepChoice: ListenSleepChoice
     /// Whether a translation is chosen, for "Read the meaning after each ayah".
     var hasTranslation = true
+    /// Understand turns on the meaning and transliteration in the reader. Passed by the play bar.
+    var onReadingAids: (() -> Void)? = nil
 
     @State private var scrubValue: Double? = nil
     @State private var isScrubbing = false
@@ -99,7 +101,7 @@ struct ListenPlayerSheet: View {
 
             options(item)
 
-            ListenPlayModesSection(item: item, hasTranslation: hasTranslation)
+            ListenPlayModesSection(item: item, hasTranslation: hasTranslation, onReadingAids: onReadingAids)
         }
     }
 

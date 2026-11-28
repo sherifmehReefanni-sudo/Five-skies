@@ -15,12 +15,18 @@ struct ListenPlayModesSection: View {
     let item: NowPlayingItem
     /// False when no translation is chosen, so there is no meaning to read. Passed by the lead.
     var hasTranslation = true
+    /// Called after the Understand preset is applied, so the reader can turn on meaning and
+    /// transliteration. Wired by the lead; nil does nothing.
+    var onReadingAids: (() -> Void)? = nil
 
     @State private var picks = 0
     @State private var restarts = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            presetsSection
+                .padding(.bottom, 8)
+
             MoreCaption(text: "Play modes")
                 .padding(.horizontal, 4)
                 .accessibilityAddTraits(.isHeader)
@@ -58,6 +64,170 @@ struct ListenPlayModesSection: View {
         }
         .sensoryFeedback(.selection, trigger: picks)
         .sensoryFeedback(.impact(weight: .light), trigger: restarts)
+    }
+
+    // MARK: - Quick start presets
+
+    private var presetsSection: some View {
+        let selected = ListenPreset.matching(player.modes)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                MoreCaption(text: "Quick start")
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("presetsHeader")
+                Spacer(minLength: 8)
+                customChip(isSelected: selected == nil)
+            }
+            .padding(.horizontal, 4)
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    ForEach(ListenPreset.allCases, id: \.self) { preset in
+                        presetButton(preset, selected: selected == preset, stacked: true)
+                    }
+                }
+                VStack(spacing: 8) {
+                    ForEach(ListenPreset.allCases, id: \.self) { preset in
+                        presetButton(preset, selected: selected == preset, stacked: false)
+                    }
+                }
+            }
+
+            Text(verbatim: selected?.subtitle ?? "Custom keeps the detailed controls below")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(MorePalette.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 4)
+                .accessibilityIdentifier("presetSubtitle")
+
+            if let note = presetNote {
+                HStack(spacing: 10) {
+                    Image(systemName: "info.circle")
+                        .font(.footnote.weight(.bold))
+                        .accessibilityHidden(true)
+                    Text(verbatim: note)
+                        .font(.footnote.weight(.semibold))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(MorePalette.secondaryText)
+                .padding(.horizontal, 4)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("presetNote")
+            }
+        }
+    }
+
+    private func presetEnabled(_ preset: ListenPreset) -> Bool {
+        if preset.needsTimings && !player.timingsAvailable { return false }
+        if preset.needsTranslation && !hasTranslation { return false }
+        return true
+    }
+
+    /// Why a preset is greyed: no timings first, since that covers both timed presets.
+    private var presetNote: String? {
+        if !player.timingsAvailable { return ListenPlayModeText.timingsNote }
+        if !hasTranslation { return Self.meaningNeedsTranslation }
+        return nil
+    }
+
+    private func presetHint(_ preset: ListenPreset) -> String {
+        if preset.needsTimings && !player.timingsAvailable { return ListenPlayModeText.timingsNote }
+        if preset.needsTranslation && !hasTranslation { return Self.meaningNeedsTranslation }
+        return preset.subtitle
+    }
+
+    private func applyPreset(_ preset: ListenPreset) {
+        picks += 1
+        player.modes = preset.applied(to: player.modes)
+        if preset.showsReadingAids {
+            onReadingAids?()
+        }
+    }
+
+    private func presetButton(_ preset: ListenPreset, selected: Bool, stacked: Bool) -> some View {
+        let enabled = presetEnabled(preset)
+        return Button {
+            applyPreset(preset)
+        } label: {
+            presetLabel(preset, selected: selected, stacked: stacked)
+                .foregroundStyle(selected ? MorePalette.ink : Color.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, stacked ? 12 : 10)
+                .frame(maxWidth: .infinity, minHeight: stacked ? 64 : 48)
+                .background {
+                    if selected {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(MorePalette.goldGradient)
+                    }
+                }
+                .moreGlass(.dark, cornerRadius: 18)
+                .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(PressScaleButtonStyle())
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.45)
+        .accessibilityLabel(Text(verbatim: preset.title))
+        .accessibilityHint(Text(verbatim: presetHint(preset)))
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier(preset.identifier)
+    }
+
+    @ViewBuilder
+    private func presetLabel(_ preset: ListenPreset, selected: Bool, stacked: Bool) -> some View {
+        let iconColor = selected ? MorePalette.ink : MorePalette.gold
+        if stacked {
+            VStack(spacing: 6) {
+                Image(systemName: preset.symbol)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(iconColor)
+                    .accessibilityHidden(true)
+                Text(verbatim: preset.title)
+                    .font(.subheadline.weight(.heavy))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+        } else {
+            HStack(spacing: 12) {
+                Image(systemName: preset.symbol)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(iconColor)
+                    .frame(width: 22)
+                    .accessibilityHidden(true)
+                Text(verbatim: preset.title)
+                    .font(.headline.weight(.heavy))
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    /// Shown selected when the modes match no preset. A label, not a button: Custom is made below.
+    private func customChip(isSelected: Bool) -> some View {
+        HStack(spacing: 4) {
+            if isSelected {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.caption2.weight(.bold))
+                    .accessibilityHidden(true)
+            }
+            Text("Custom")
+                .font(.caption.weight(.heavy))
+        }
+        .foregroundStyle(isSelected ? MorePalette.ink : MorePalette.secondaryText)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background {
+            if isSelected {
+                Capsule().fill(MorePalette.goldGradient)
+            } else {
+                Capsule().stroke(Color.white.opacity(0.3), lineWidth: 1)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Custom")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityIdentifier("presetCustom")
     }
 
     // MARK: - When this surah ends

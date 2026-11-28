@@ -28,6 +28,7 @@ enum QuranListMode: String, CaseIterable, Identifiable {
 struct QuranTabView: View {
     @EnvironmentObject private var quran: QuranStore
     @EnvironmentObject private var navigator: QuranNavigator
+    @EnvironmentObject private var translations: TranslationStore
     @StateObject private var bookmarks = QuranBookmarksStore()
     @StateObject private var lastRead = QuranLastReadStore()
     @StateObject private var listen: QuranListenModel
@@ -39,6 +40,8 @@ struct QuranTabView: View {
     @State private var showsPlayer = false
     @State private var showsGoTo = false
     @State private var goToTarget: QuranReaderTarget?
+    /// Folded once per downloaded translation, so typing does not refold every verse (E2.3).
+    @State private var meaningIndex: TranslationSearchIndex?
 
     init() {
         _listen = StateObject(wrappedValue: QuranListenModel(catalog: ListenCatalogFactory.live()))
@@ -149,8 +152,14 @@ struct QuranTabView: View {
                 .searchable(
                     text: $query,
                     placement: .navigationBarDrawer(displayMode: .always),
-                    prompt: "Search surahs"
+                    prompt: "Search surahs or meaning"
                 )
+                .task(id: translations.loaded?.summary) {
+                    let verses = translations.loaded?.verses
+                    meaningIndex = await Task.detached(priority: .utility) {
+                        verses.map { TranslationSearchIndex(verses: $0) }
+                    }.value
+                }
         }
     }
 
@@ -180,7 +189,23 @@ struct QuranTabView: View {
                 .quranListRow()
             }
 
-            if searching || mode == .surahs {
+            if searching {
+                let suras = QuranSearch.filter(data.suras, query: query)
+                let meaningHits = meaningHits()
+                if !suras.isEmpty || meaningHits == nil || meaningHits?.isEmpty == true {
+                    suraRows(suras)
+                }
+                if let meaningHits, let loaded = translations.loaded {
+                    TranslationSearchSection(
+                        hits: meaningHits,
+                        translationName: loaded.summary.name,
+                        suraName: { data.sura($0)?.transliteratedName },
+                        onOpen: { path.append($0) }
+                    )
+                } else if translations.loaded == nil {
+                    TranslationSearchPrompt()
+                }
+            } else if mode == .surahs {
                 suraRows(QuranSearch.filter(data.suras, query: query))
             } else if mode == .juz {
                 juzRows(data)
@@ -192,6 +217,13 @@ struct QuranTabView: View {
         .scrollContentBackground(.hidden)
         .quranSkyBackground()
         .foregroundStyle(.white)
+    }
+
+    /// Nil when no translation is loaded or the query is too short to search the meaning.
+    private func meaningHits() -> [TranslationSearchHit]? {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard translations.loaded != nil, let meaningIndex, trimmed.count >= 3 else { return nil }
+        return meaningIndex.search(trimmed)
     }
 
     // MARK: - Continue reading

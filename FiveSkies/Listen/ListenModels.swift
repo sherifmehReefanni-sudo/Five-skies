@@ -120,11 +120,14 @@ struct PlayModes: Equatable, Codable, Sendable {
     /// After each ayah, an English voice reads the user's chosen translation, then the
     /// recitation goes on. Needs timings. English text only; never a computer voice for Arabic.
     var readsMeaning = false
+    /// Memorize: while the listener's turn waits (`reciteAfterMe`), the reader hides that ayah's
+    /// Arabic until they tap to peek. The stored text and its drawing are never changed.
+    var hidesAyahWhileWaiting = false
 
     init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case surahEnd, ayahRepeat, reciteAfterMe, pausesForPrayer, readsMeaning
+        case surahEnd, ayahRepeat, reciteAfterMe, pausesForPrayer, readsMeaning, hidesAyahWhileWaiting
     }
 
     /// Fields missing from an older saved copy keep their defaults, so adding a field never resets the rest.
@@ -135,6 +138,7 @@ struct PlayModes: Equatable, Codable, Sendable {
         reciteAfterMe = (try? container.decodeIfPresent(Bool.self, forKey: .reciteAfterMe)) ?? false
         pausesForPrayer = (try? container.decodeIfPresent(Bool.self, forKey: .pausesForPrayer)) ?? true
         readsMeaning = (try? container.decodeIfPresent(Bool.self, forKey: .readsMeaning)) ?? false
+        hidesAyahWhileWaiting = (try? container.decodeIfPresent(Bool.self, forKey: .hidesAyahWhileWaiting)) ?? false
     }
 }
 
