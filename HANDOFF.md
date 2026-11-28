@@ -390,3 +390,4 @@ Built N1 to N7 from docs/LEARN_LISTEN_PLAN.md section 5, three parallel builders
 - N8 and N9 stay blocked (no prayer steps, no wudu steps, no shahada text, no hadith).
 Screenshots looked at: onboarding-1, settings-new-to-islam, match-mosque, glossary, day-view.
 Next: TestFlight build 14 needs Reef's yes. Reef: turn on GitHub Pages, then Opus checks the privacy page before the Quran Foundation request.
+TestFlight run 46165213466 (Reef yes, 11:26 ET) succeeded: build 0.1.0 (14), commit a60ff02, app code as 1c7396d (round E4).
