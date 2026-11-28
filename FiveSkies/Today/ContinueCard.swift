@@ -67,7 +67,7 @@ struct ContinueCard: View {
             .padding(.leading, 12)
             .padding(.trailing, 14)
             .frame(maxWidth: .infinity, minHeight: 52, maxHeight: 52)
-            .background(shape.fill(Color(hex: 0x120B1F, opacity: 0.55)))
+            .background(shape.fill(Color(hex: 0x120B1F, opacity: 0.88)))
             .overlay(shape.strokeBorder(Color.white.opacity(0.3), lineWidth: 1))
             .contentShape(shape)
         }
