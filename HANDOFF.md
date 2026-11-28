@@ -280,3 +280,17 @@ UNVERIFIED on a phone: speech with the screen locked; transliteration text from 
 Next: TestFlight build 8 needs Reef's yes. Then Fable plans the ease-of-use list above.
 
 TestFlight run 46097792093 (Reef yes, 21:22 ET) succeeded: build 0.1.0 (8).
+
+## Round E1 status (Nov 27, 2026, 22:40 ET, Opus)
+
+Built per docs/READER_EASE_PLAN.md, four parallel builders plus lead wiring. CI green (commit 0e891a5 pending, e554ed7 passed).
+- E1.1 Ayah toolbar replaces the dialog (`FiveSkies/Quran/Toolbar/`): Play from here, Bookmark, Share, More (Copy, Share as image, Mark as last read).
+- E1.2 Find your way: Play on the surah header, playing bar opens the playing ayah (then the player), Previous and Next surah at the end, Go to on the Quran tab (2:255, names, page, juz; `FiveSkies/Quran/GoTo/`). `QuranNavigator` lets any screen open the reader.
+- E1.3 One Reading sheet (`FiveSkies/Quran/ReadingSettings/`): Arabic size, show meaning, which translation, transliteration, Sky or Plain dark. `TranslationSettingsRow` and `ReaderTextSizeSheet` removed.
+- E1.4 Continue card on Today (`FiveSkies/Today/ContinueStore.swift`, `ContinueCard.swift`) for the last reading or listening.
+- E1.5 Meaning shows by default once a translation is downloaded.
+Screenshots looked at: ayah-toolbar, goto-sheet, goto-reader, quran-text-size, reader-play-from, continue-card (new in 0e891a5).
+Fixes on the way: Go to opens the reader after its sheet closes, and the reader scrolls a second time so far ayahs land on screen.
+FollowAlongAyahText drawing unchanged.
+UNVERIFIED on a phone: far Go to jumps in long surahs (2:255 passes on the simulator).
+Next: TestFlight build 9 needs Reef's yes. Then round E2 (presets, Words sheet, search in the meaning).
