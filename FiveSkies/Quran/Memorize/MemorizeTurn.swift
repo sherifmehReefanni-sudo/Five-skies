@@ -39,7 +39,7 @@ final class KnownAyahsStore: ObservableObject {
         defaults.set(list, forKey: Self.key)
     }
 
-    static func ref(from key: String) -> AyahRef? {
+    nonisolated static func ref(from key: String) -> AyahRef? {
         let parts = key.split(separator: ":").compactMap { Int($0) }
         guard parts.count == 2, parts[0] >= 1, parts[1] >= 1 else { return nil }
         return AyahRef(sura: parts[0], aya: parts[1])
