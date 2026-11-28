@@ -17,6 +17,8 @@ struct ListenPlayProblem: Equatable {
     let chapter: Int
     let chapterName: String
     let kind: Kind
+    /// The ayah the listener asked to start from, so Retry starts there too.
+    var fromAyah: Int? = nil
 
     var message: String {
         switch kind {
@@ -150,11 +152,18 @@ final class QuranListenModel: ObservableObject {
         }
     }
 
-    /// Looks up a surah for the chosen reciter and starts it. A newer tap replaces an older one.
+    /// Looks up a surah for the chosen reciter and starts it, at `fromAyah` when one is given
+    /// (the player starts at the beginning when it has no timings). A newer tap replaces an older one.
     @MainActor
-    func play(chapter: Int, name: String, on player: ListenPlayer) {
+    func play(chapter: Int, name: String, fromAyah: Int? = nil, on player: ListenPlayer) {
         audioTask?.cancel()
         problem = nil
+        // Already in the player with the chosen reciter: jump there without looking it up again.
+        if let fromAyah, loadTask == nil, isCurrent(chapter, in: player), let current = player.item {
+            fetchingChapter = nil
+            player.play(current, fromAyah: fromAyah)
+            return
+        }
         fetchingChapter = chapter
         let catalog = self.catalog
         audioTask = Task { @MainActor [weak self, weak player] in
@@ -165,20 +174,49 @@ final class QuranListenModel: ObservableObject {
             guard !Task.isCancelled, let self else { return }
             guard let reciter = self.selectedReciter else {
                 self.fetchingChapter = nil
-                self.problem = ListenPlayProblem(chapter: chapter, chapterName: name, kind: .noReciter)
+                self.problem = ListenPlayProblem(chapter: chapter, chapterName: name, kind: .noReciter, fromAyah: fromAyah)
                 return
             }
             do {
                 let audio = try await catalog.chapterAudio(reciterID: reciter.id, chapter: chapter)
                 guard !Task.isCancelled else { return }
                 self.fetchingChapter = nil
-                player?.play(NowPlayingItem(reciter: reciter, chapter: chapter, chapterName: name, audio: audio))
+                let item = NowPlayingItem(reciter: reciter, chapter: chapter, chapterName: name, audio: audio)
+                if let fromAyah {
+                    player?.play(item, fromAyah: fromAyah)
+                } else {
+                    player?.play(item)
+                }
             } catch {
                 guard !Task.isCancelled else { return }
                 self.fetchingChapter = nil
-                self.problem = ListenPlayProblem(chapter: chapter, chapterName: name, kind: .unavailable)
+                self.problem = ListenPlayProblem(chapter: chapter, chapterName: name, kind: .unavailable, fromAyah: fromAyah)
             }
         }
+    }
+
+    /// True only when "Play from this ayah" is known to start at the beginning: the player has
+    /// no timings source at all, or this surah is loaded with the chosen reciter and has no timings.
+    /// While a surah is still loading this stays false, since its timings may yet arrive.
+    @MainActor
+    func playFromAyahStartsAtBeginning(chapter: Int, in player: ListenPlayer) -> Bool {
+        if player.timingProvider == nil {
+            return true
+        }
+        guard isCurrent(chapter, in: player) else { return false }
+        switch player.state {
+        case .playing, .paused:
+            return !player.timingsAvailable
+        case .idle, .loading, .failed:
+            return false
+        }
+    }
+
+    /// The label of the ayah dialog's play button.
+    static func playFromAyahTitle(startsAtBeginning: Bool) -> String {
+        startsAtBeginning
+            ? "Play from this ayah (starts at the beginning for this reciter)"
+            : "Play from this ayah"
     }
 
     /// Tries the failed surah again. With no reciter, loads the reciters again first.
@@ -188,7 +226,7 @@ final class QuranListenModel: ObservableObject {
         if problem.kind == .noReciter, selectedReciter == nil {
             reload()
         }
-        play(chapter: problem.chapter, name: problem.chapterName, on: player)
+        play(chapter: problem.chapter, name: problem.chapterName, fromAyah: problem.fromAyah, on: player)
     }
 
     @MainActor

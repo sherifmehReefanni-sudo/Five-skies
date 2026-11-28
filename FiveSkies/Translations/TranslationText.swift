@@ -42,6 +42,80 @@ enum TranslationText {
         return nil
     }
 
+    // MARK: - Transliteration (D6: its own text, not a translation)
+
+    /// Quran Foundation lists the transliteration among the translations. It is found by name
+    /// or slug; this id is only a tie breaker between entries that already match by name or slug.
+    static let knownTransliterationID = 57
+
+    static func isTransliteration(name: String?, slug: String?) -> Bool {
+        [name, slug].contains(where: { value in
+            value?.range(of: "translit", options: [.caseInsensitive, .diacriticInsensitive]) != nil
+        })
+    }
+
+    static func isTransliteration(_ info: TranslationInfo) -> Bool {
+        isTransliteration(name: info.name, slug: info.slug)
+    }
+
+    /// The transliteration entry of the catalog: an entry whose name or slug contains "translit",
+    /// English first, then the known id, then the lowest id. Nil when the catalog has none.
+    static func transliterationEntry(in catalog: [TranslationInfo]) -> TranslationInfo? {
+        let matches = catalog.filter { isTransliteration($0) }
+        guard !matches.isEmpty else { return nil }
+        let english = matches.filter { isEnglish($0.languageName) }
+        let pool = english.isEmpty ? matches : english
+        if let known = pool.first(where: { $0.id == knownTransliterationID }) {
+            return known
+        }
+        return pool.min { $0.id < $1.id }
+    }
+
+    /// The catalog the translation picker shows: everything except transliterations.
+    static func pickerCatalog(_ catalog: [TranslationInfo]) -> [TranslationInfo] {
+        catalog.filter { !isTransliteration($0) }
+    }
+
+    private static func isPlainTransliterationName(_ name: String) -> Bool {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+            .compare("Transliteration", options: [.caseInsensitive]) == .orderedSame
+    }
+
+    private static func trimmedAuthor(_ authorName: String?) -> String? {
+        guard let author = authorName?.trimmingCharacters(in: .whitespacesAndNewlines), !author.isEmpty else {
+            return nil
+        }
+        return author
+    }
+
+    /// The footer line, for example "Transliteration provided by Quran Foundation."
+    static func transliterationAttribution(name: String, authorName: String?) -> String {
+        let author = trimmedAuthor(authorName)
+        if isPlainTransliterationName(name) {
+            if let author {
+                return "Transliteration by \(author). Provided by Quran Foundation."
+            }
+            return "Transliteration provided by Quran Foundation."
+        }
+        if let author {
+            return "Transliteration: \(name) by \(author). Provided by Quran Foundation."
+        }
+        return "Transliteration: \(name). Provided by Quran Foundation."
+    }
+
+    /// The short source under the toggle, for example "Quran Foundation".
+    static func transliterationSource(name: String, authorName: String?) -> String {
+        var parts: [String] = []
+        if !isPlainTransliterationName(name) {
+            parts.append(name)
+        }
+        if let author = trimmedAuthor(authorName) {
+            parts.append(author)
+        }
+        parts.append("Quran Foundation")
+        return parts.joined(separator: ", ")
+    }
+
     /// A language section of the picker.
     struct LanguageGroup: Identifiable, Equatable {
         let language: String

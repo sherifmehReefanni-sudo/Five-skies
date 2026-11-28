@@ -10,7 +10,7 @@ struct FiveSkiesApp: App {
     /// Loads the bundled Quran text once, off the main thread, for the Quran tab.
     @StateObject private var quran = QuranStore()
     /// Quran Foundation translations, kept offline only through Content Sync.
-    @StateObject private var translations = TranslationStore.live()
+    @StateObject private var translations: TranslationStore
     /// Decides when the signature shooting star plays on Today.
     @StateObject private var signatureStar = SignatureStarController()
     /// The one recitation player, shared by the Quran tab and the lock screen controls.
@@ -28,8 +28,11 @@ struct FiveSkiesApp: App {
         let settings = AppSettings()
         let location = LocationProvider()
         _location = StateObject(wrappedValue: location)
+        let translationStore = TranslationStore.live()
+        _translations = StateObject(wrappedValue: translationStore)
         let player = ListenPlayer.live()
         player.timingProvider = SurahTimingFactory.live()
+        player.meaningProvider = TranslationMeaningProvider(store: translationStore)
         _listenPlayer = StateObject(wrappedValue: player)
         self.launch = launch
         self.service = service

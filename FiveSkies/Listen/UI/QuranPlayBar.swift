@@ -290,6 +290,7 @@ struct QuranSurahPlayButton: View {
 struct QuranListenHost: ViewModifier {
     @EnvironmentObject private var player: ListenPlayer
     @EnvironmentObject private var quran: QuranStore
+    @EnvironmentObject private var translations: TranslationStore
     @ObservedObject var model: QuranListenModel
     @Binding var showsReciters: Bool
     @Binding var showsPlayer: Bool
@@ -314,7 +315,7 @@ struct QuranListenHost: ViewModifier {
                 ListenReciterPicker(model: model)
             }
             .sheet(isPresented: $showsPlayer) {
-                ListenPlayerSheet(sleepChoice: $sleepChoice)
+                ListenPlayerSheet(sleepChoice: $sleepChoice, hasTranslation: translations.selectedID != nil)
                     .environmentObject(player)
                     .environmentObject(quran)
             }

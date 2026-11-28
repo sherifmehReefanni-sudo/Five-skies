@@ -7,6 +7,8 @@ struct ListenPlayerSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @Binding var sleepChoice: ListenSleepChoice
+    /// Whether a translation is chosen, for "Read the meaning after each ayah".
+    var hasTranslation = true
 
     @State private var scrubValue: Double? = nil
     @State private var isScrubbing = false
@@ -97,7 +99,7 @@ struct ListenPlayerSheet: View {
 
             options(item)
 
-            ListenPlayModesSection(item: item)
+            ListenPlayModesSection(item: item, hasTranslation: hasTranslation)
         }
     }
 

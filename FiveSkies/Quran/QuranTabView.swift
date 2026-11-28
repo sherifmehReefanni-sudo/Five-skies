@@ -54,7 +54,8 @@ struct QuranTabView: View {
                 .navigationTitle("Quran")
                 .navigationBarTitleDisplayMode(.large)
                 .navigationDestination(for: QuranReaderTarget.self) { target in
-                    SurahReaderView(suraNumber: target.sura, initialAyah: target.aya)
+                    // Passed as a plain reference, so the reader does not redraw when the model changes.
+                    SurahReaderView(suraNumber: target.sura, initialAyah: target.aya, listen: listen)
                         .safeAreaInset(edge: .bottom, spacing: 0) {
                             QuranPlayBar(
                                 model: listen,

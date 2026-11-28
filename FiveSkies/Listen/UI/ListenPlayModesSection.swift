@@ -1,13 +1,20 @@
 import SwiftUI
 
 /// The play modes in the player sheet (docs/LEARN_LISTEN_PLAN.md section 3): when this surah
-/// ends, repeat each ayah, recite after me, pause for prayer, and start over. The options that
-/// follow single ayahs need timings, so they are greyed with a short note when there are none.
+/// ends, repeat each ayah, recite after me, read the meaning, pause for prayer, and start over.
+/// The options that follow single ayahs need timings, so they are greyed with a short note when
+/// there are none. Reading the meaning also needs a translation chosen in Aa.
 struct ListenPlayModesSection: View {
+    static let meaningTitle = "Read the meaning after each ayah"
+    static let meaningNote = "English voice reads your chosen translation"
+    static let meaningNeedsTranslation = "Choose a translation in Aa first"
+
     @EnvironmentObject private var player: ListenPlayer
     @EnvironmentObject private var quran: QuranStore
 
     let item: NowPlayingItem
+    /// False when no translation is chosen, so there is no meaning to read. Passed by the lead.
+    var hasTranslation = true
 
     @State private var picks = 0
     @State private var restarts = 0
@@ -181,6 +188,20 @@ struct ListenPlayModesSection: View {
                 identifier: "playerReciteAfterMe"
             )
             .accessibilityHint("After each ayah, waits as long as the ayah lasted so you can recite it")
+            divider
+            toggleRow(
+                symbol: "text.bubble.fill",
+                title: Self.meaningTitle,
+                note: hasTranslation ? Self.meaningNote : Self.meaningNeedsTranslation,
+                isOn: Binding(
+                    get: { player.modes.readsMeaning },
+                    set: { player.modes.readsMeaning = $0 }
+                ),
+                needsTimings: true,
+                allowed: hasTranslation,
+                identifier: "playerReadMeaning"
+            )
+            .accessibilityHint(Text(meaningHint(timingsAvailable: available)))
             if !available {
                 HStack(spacing: 10) {
                     Image(systemName: "info.circle")
@@ -242,16 +263,24 @@ struct ListenPlayModesSection: View {
         .accessibilityIdentifier("playerAyahRepeat")
     }
 
+    private func meaningHint(timingsAvailable: Bool) -> String {
+        if !hasTranslation { return Self.meaningNeedsTranslation }
+        if !timingsAvailable { return ListenPlayModeText.timingsNote }
+        return "After each ayah, an English voice reads its meaning, then the recitation goes on"
+    }
+
     // MARK: - Rows
 
     private func toggleRow(
         symbol: String,
         title: String,
+        note: String? = nil,
         isOn: Binding<Bool>,
         needsTimings: Bool = false,
+        allowed: Bool = true,
         identifier: String
     ) -> some View {
-        let enabled = !needsTimings || player.timingsAvailable
+        let enabled = allowed && (!needsTimings || player.timingsAvailable)
         return Toggle(isOn: Binding(
             get: { isOn.wrappedValue },
             set: { value in
@@ -261,9 +290,18 @@ struct ListenPlayModesSection: View {
         )) {
             HStack(spacing: 14) {
                 optionIcon(symbol)
-                Text(title)
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(.white)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let note {
+                        Text(verbatim: note)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(MorePalette.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
             }
         }
         .tint(MorePalette.gold)

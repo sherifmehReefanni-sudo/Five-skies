@@ -23,11 +23,20 @@ struct NowPlayingBar: View {
                                 ListenYourTurnBadge(identifier: "nowPlayingYourTurn")
                             }
                         }
+                        // The reciter credit always stays in view (D9); the meaning line joins it while it is read.
                         Text(verbatim: item.credit)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(MorePalette.secondaryText)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
+                        if let meaning = player.speakingMeaning {
+                            Text(verbatim: ListenMeaningText.label(for: meaning))
+                                .font(.caption2.weight(.heavy))
+                                .foregroundStyle(MorePalette.gold)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                                .accessibilityIdentifier("nowPlayingMeaning")
+                        }
                     }
                     Spacer(minLength: 0)
                 }

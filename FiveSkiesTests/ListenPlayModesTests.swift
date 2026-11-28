@@ -128,6 +128,7 @@ final class ListenPlayModesTests: XCTestCase {
         chosen.ayahRepeat = 5
         chosen.reciteAfterMe = true
         chosen.pausesForPrayer = false
+        chosen.readsMeaning = true
         h.player.modes = chosen
         XCTAssertNotNil(h.defaults.data(forKey: ListenPlayer.modesKey))
         XCTAssertEqual(ListenPlayer(engine: SimulatedEngine(), defaults: h.defaults).modes, chosen)

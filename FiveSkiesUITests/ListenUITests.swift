@@ -70,6 +70,50 @@ final class ListenUITests: XCTestCase {
         app.terminate()
     }
 
+    /// "Play from this ayah" in the ayah dialog starts this surah in the player.
+    @MainActor
+    func testReaderPlaysFromAnAyah() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-FSFixedPhase", "isha", "-FSFakeListen"]
+        app.launch()
+
+        let tab = app.tabBars.buttons["Quran"]
+        XCTAssertTrue(tab.waitForExistence(timeout: 20), "Quran tab button did not appear")
+        tab.tap()
+        XCTAssertTrue(app.buttons["listenReciterButton"].waitForExistence(timeout: 20), "The fake reciters did not load")
+
+        let firstSura = app.buttons["suraRow-1"]
+        XCTAssertTrue(firstSura.waitForExistence(timeout: 20), "The sura list did not load")
+        firstSura.tap()
+
+        let ayah = app.buttons["ayah-2"]
+        XCTAssertTrue(ayah.waitForExistence(timeout: 20), "Ayah 2 did not appear")
+        ayah.tap()
+
+        // Dialog buttons may not keep their identifier, so the label prefix is the fallback.
+        let byIdentifier = app.buttons["ayahPlayFrom"]
+        let byLabel = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Play from this ayah")).firstMatch
+        var found = false
+        let deadline = Date().addingTimeInterval(10)
+        while !found && Date() < deadline {
+            found = byIdentifier.exists || byLabel.exists
+            if !found {
+                Thread.sleep(forTimeInterval: 0.25)
+            }
+        }
+        XCTAssertTrue(found, "The ayah dialog has no Play from this ayah button")
+        if byIdentifier.exists {
+            byIdentifier.tap()
+        } else {
+            byLabel.tap()
+        }
+
+        let bar = app.descendants(matching: .any)["nowPlayingBar"]
+        XCTAssertTrue(bar.waitForExistence(timeout: 20), "The now playing bar did not appear")
+        attachScreenshot(named: "reader-play-from")
+        app.terminate()
+    }
+
     @MainActor
     private func attachScreenshot(named name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())

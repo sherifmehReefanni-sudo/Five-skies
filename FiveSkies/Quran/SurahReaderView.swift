@@ -9,6 +9,9 @@ struct SurahReaderView: View {
 
     let suraNumber: Int
     let initialAyah: Int?
+    /// The Quran tab's listening model, for "Play from this ayah". A plain reference, not observed,
+    /// so the reader does not redraw when it changes. Nil hides the play option.
+    var listen: QuranListenModel? = nil
 
     @EnvironmentObject private var quran: QuranStore
     @EnvironmentObject private var bookmarks: QuranBookmarksStore
@@ -27,6 +30,13 @@ struct SurahReaderView: View {
     @State private var saveTask: Task<Void, Never>?
     /// Word ranges over the stored ayah strings, lined up with the player's timings (rules W1 to W5).
     @State private var followAlong: SurahFollowAlong?
+    /// Keeps the ayah being recited in view. Off once the listener drags the list.
+    @State private var followsRecitation = true
+    /// True while this surah plays with timings, so following can work.
+    @State private var isFollowable = false
+    @State private var playFromStartsAtBeginning = false
+    /// The ayah picked in "Play from this ayah", handed to `ReaderListenWatcher`.
+    @State private var playFromRequest: Int?
 
     var body: some View {
         Group {
@@ -56,7 +66,7 @@ struct SurahReaderView: View {
         .sheet(isPresented: $showsTextSize) {
             ReaderTextSizeSheet(size: $textSize)
                 .environmentObject(translations)
-                .presentationDetents([.height(300), .medium])
+                .presentationDetents([.height(420), .medium, .large])
                 .presentationDragIndicator(.visible)
         }
         .onDisappear {
@@ -105,6 +115,8 @@ struct SurahReaderView: View {
                             .onDisappear { visibleAyahs.remove(ayah.number) }
                     }
 
+                    TransliterationAttributionFooter()
+                        .padding(.top, 8)
                     if let loaded = translations.loaded {
                         TranslationAttributionFooter(
                             summary: loaded.summary,
@@ -124,11 +136,33 @@ struct SurahReaderView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 28)
             }
+            .modifier(ReaderStopsFollowingOnDrag(follows: $followsRecitation))
             .onAppear {
                 scrollToInitialAyah(proxy, count: ayahs.count)
             }
-            // A separate watcher, so the reader itself does not redraw on every player update.
+            // Separate watchers, so the reader itself does not redraw on every player update.
             .background(FollowAlongTimingsWatcher(chapter: sura.number, ayahs: ayahs, followAlong: $followAlong))
+            .background(
+                ReaderListenWatcher(
+                    chapter: sura.number,
+                    chapterName: sura.transliteratedName,
+                    ayahCount: ayahs.count,
+                    listen: listen,
+                    proxy: proxy,
+                    follows: $followsRecitation,
+                    isFollowable: $isFollowable,
+                    playFromStartsAtBeginning: $playFromStartsAtBeginning,
+                    playRequest: $playFromRequest
+                )
+            )
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if isFollowable && !followsRecitation {
+                ReaderFollowPill {
+                    followsRecitation = true
+                }
+                .padding(.bottom, 6)
+            }
         }
         .quranSkyBackground()
         .foregroundStyle(.white)
@@ -138,6 +172,12 @@ struct SurahReaderView: View {
             titleVisibility: .visible,
             presenting: selectedAyah
         ) { ayah in
+            if let listen, listen.offersPlayback {
+                Button(QuranListenModel.playFromAyahTitle(startsAtBeginning: playFromStartsAtBeginning)) {
+                    playFromRequest = ayah.number
+                }
+                .accessibilityIdentifier("ayahPlayFrom")
+            }
             if bookmarks.contains(ayah.ref) {
                 Button("Remove bookmark") {
                     bookmarks.remove(ayah.ref)
@@ -210,12 +250,19 @@ struct SurahReaderView: View {
         let isBookmarked = bookmarks.contains(ayah.ref)
         let captions = Self.captions(for: ayah.ref, in: data)
         let translation = translations.text(for: ayah.sura, aya: ayah.number)
+        let transliteration = translations.showsTransliteration
+            ? translations.transliteration(for: ayah.sura, aya: ayah.number)
+            : nil
         return Button {
             selectedAyah = ayah
             showsActions = true
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 FollowAlongAyahText(ayah: ayah, followAlong: followAlong, size: size)
+
+                if let line = transliteration {
+                    AyahTransliterationText(text: line)
+                }
 
                 if let translation {
                     AyahTranslationText(text: translation)
@@ -247,15 +294,21 @@ struct SurahReaderView: View {
         .buttonStyle(.plain)
         .quranFadeIn()
         .accessibilityLabel(Text(verbatim: Self.ayahAccessibilityLabel(ayah: ayah.number, captions: captions, bookmarked: isBookmarked)))
-        .accessibilityValue(Text(verbatim: Self.ayahAccessibilityValue(arabic: ayah.displayText, translation: translation)))
+        .accessibilityValue(Text(verbatim: Self.ayahAccessibilityValue(arabic: ayah.displayText, transliteration: transliteration, translation: translation)))
         .accessibilityHint("Shows bookmark, copy and share")
         .accessibilityIdentifier("ayah-\(ayah.number)")
     }
 
-    /// The Arabic as stored, then the translation when one is shown.
-    static func ayahAccessibilityValue(arabic: String, translation: String?) -> String {
-        guard let translation, !translation.isEmpty else { return arabic }
-        return "\(arabic)\nTranslation: \(translation)"
+    /// The Arabic as stored, then the transliteration and the translation when they are shown.
+    static func ayahAccessibilityValue(arabic: String, transliteration: String? = nil, translation: String?) -> String {
+        var parts = [arabic]
+        if let transliteration, !transliteration.isEmpty {
+            parts.append("Transliteration: \(transliteration)")
+        }
+        if let translation, !translation.isEmpty {
+            parts.append("Translation: \(translation)")
+        }
+        return parts.joined(separator: "\n")
     }
 
     static func ayahAccessibilityLabel(ayah: Int, captions: [String], bookmarked: Bool) -> String {
@@ -293,6 +346,8 @@ struct SurahReaderView: View {
         guard !didInitialScroll else { return }
         didInitialScroll = true
         guard let target = initialAyah, target > 1, target <= count else { return }
+        // Opened at a chosen ayah: stay there. The Follow pill turns following back on.
+        followsRecitation = false
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
             proxy.scrollTo(target, anchor: .top)
         }
@@ -483,5 +538,146 @@ enum FollowAlongFrozenFrame {
               let range = followAlong?.text(forAyah: ayah.number)?.range(ofWord: target.word)
         else { return nil }
         return .word(ayah: ayah.number, range: range)
+    }
+}
+
+// MARK: - Following the recitation
+
+/// Pure rules for following the recitation in the reader.
+enum ReaderFollow {
+    /// Where the current ayah sits: its top part in the upper third of the screen.
+    static let anchor = UnitPoint(x: 0.5, y: 0.25)
+
+    /// The ayah to scroll to, or nil when the reader should stay where it is: following is
+    /// off, another surah (or nothing) is playing, or the ayah is not one of this surah's.
+    static func target(follows: Bool, readerChapter: Int, playingChapter: Int?, currentAyah: Int?, ayahCount: Int) -> Int? {
+        guard follows, playingChapter == readerChapter, let ayah = currentAyah, ayah >= 1, ayah <= ayahCount else {
+            return nil
+        }
+        return ayah
+    }
+}
+
+/// Follows the recitation and runs "Play from this ayah". Draws nothing.
+/// It watches the player so the reader does not: it acts only when the current ayah, the item
+/// or the timings change, not on each of the frequent position updates.
+private struct ReaderListenWatcher: View {
+    let chapter: Int
+    let chapterName: String
+    let ayahCount: Int
+    let listen: QuranListenModel?
+    let proxy: ScrollViewProxy
+    @Binding var follows: Bool
+    @Binding var isFollowable: Bool
+    @Binding var playFromStartsAtBeginning: Bool
+    @Binding var playRequest: Int?
+
+    @EnvironmentObject private var player: ListenPlayer
+    @Environment(\.motionEnabled) private var motionEnabled
+
+    var body: some View {
+        let followable = player.item?.chapter == chapter && player.timingsAvailable
+        let startsAtBeginning = listen?.playFromAyahStartsAtBeginning(chapter: chapter, in: player) ?? false
+        return Color.clear
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+            .onChange(of: player.currentAyah) { _, ayah in
+                scroll(to: ayah)
+            }
+            .onChange(of: follows) { _, isOn in
+                if isOn {
+                    scroll(to: player.currentAyah)
+                }
+            }
+            .onChange(of: player.item?.chapter) { _, playing in
+                // A new start of this surah follows again.
+                if playing == chapter, !follows {
+                    follows = true
+                }
+            }
+            .onChange(of: followable, initial: true) { _, value in
+                isFollowable = value
+            }
+            .onChange(of: startsAtBeginning, initial: true) { _, value in
+                playFromStartsAtBeginning = value
+            }
+            .onChange(of: playRequest) { _, ayah in
+                guard let ayah else { return }
+                playRequest = nil
+                guard let listen else { return }
+                follows = true
+                listen.play(chapter: chapter, name: chapterName, fromAyah: ayah, on: player)
+            }
+    }
+
+    /// Scrolls to the ayah being recited. No animation under Reduce Motion (and in screenshot mode).
+    private func scroll(to ayah: Int?) {
+        guard let target = ReaderFollow.target(
+            follows: follows,
+            readerChapter: chapter,
+            playingChapter: player.item?.chapter,
+            currentAyah: ayah,
+            ayahCount: ayahCount
+        ) else { return }
+        if motionEnabled {
+            withAnimation(.easeInOut(duration: 0.45)) {
+                proxy.scrollTo(target, anchor: ReaderFollow.anchor)
+            }
+        } else {
+            proxy.scrollTo(target, anchor: ReaderFollow.anchor)
+        }
+    }
+}
+
+/// Turns following off as soon as the listener drags the list.
+/// The reader's own scrolling does not count; only the listener's finger does.
+private struct ReaderStopsFollowingOnDrag: ViewModifier {
+    @Binding var follows: Bool
+
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, *) {
+            content.onScrollPhaseChange { _, phase in
+                if case .interacting = phase, follows {
+                    follows = false
+                }
+            }
+        } else {
+            content.simultaneousGesture(
+                DragGesture(minimumDistance: 12).onChanged { _ in
+                    if follows {
+                        follows = false
+                    }
+                }
+            )
+        }
+    }
+}
+
+/// The small "Follow" pill above the play bar, shown after the listener scrolled away.
+private struct ReaderFollowPill: View {
+    let action: () -> Void
+
+    @State private var taps = 0
+
+    var body: some View {
+        Button {
+            taps += 1
+            action()
+        } label: {
+            Label("Follow", systemImage: "waveform")
+                .font(.subheadline.weight(.heavy))
+                .foregroundStyle(MorePalette.ink)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 9)
+                .background(Capsule().fill(MorePalette.goldGradient))
+                .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
+                .contentShape(Capsule())
+        }
+        .buttonStyle(PressScaleButtonStyle())
+        .sensoryFeedback(.impact(weight: .light), trigger: taps)
+        .frame(maxWidth: .infinity)
+        .accessibilityLabel("Follow the recitation")
+        .accessibilityHint("Scrolls to the ayah being recited and keeps it in view")
+        .accessibilityIdentifier("readerFollow")
     }
 }

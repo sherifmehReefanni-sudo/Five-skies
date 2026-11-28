@@ -4,6 +4,7 @@ import Foundation
 /// the sleep timer, interruptions and the lock screen, plus the round C1 play modes:
 /// what happens when a surah ends (stop, next, repeat, a set), ayah repeat, recite after me,
 /// loop a range of ayahs, pause for prayer and resume where the listener stopped.
+/// With `modes.readsMeaning`, an English voice reads each ayah's meaning after its last play.
 /// The sound comes from a `PlaybackEngine`; the lock screen and audio session from `ListenSystemHooks`.
 @MainActor
 final class ListenPlayer: ObservableObject {
@@ -60,12 +61,18 @@ final class ListenPlayer: ObservableObject {
     @Published private(set) var surahRepeatsDone = 0
     /// The remembered spot this surah started from, so the UI can offer "Start over". Nil otherwise.
     @Published private(set) var resumedFrom: Double?
+    /// The meaning an English voice is reading now, so the UI can show "Meaning · source"
+    /// (`ListenMeaningText.label(for:)`). Nil when nothing is being read.
+    @Published private(set) var speakingMeaning: AyahMeaning?
 
     /// Makes the next surah's item for play next and play a set. Set by the UI.
     /// Without it those modes stop at the end of the surah.
     var queueResolver: (any ListenQueueResolving)?
     /// Supplies timings. Set by the lead. Without it the ayah options stay off.
     var timingProvider: (any SurahTimingProviding)?
+    /// Supplies the English meaning read after each ayah. Set by the lead. Without it
+    /// `modes.readsMeaning` does nothing.
+    var meaningProvider: (any AyahMeaningProviding)?
     /// Runs the recite after me wait. Tests replace it to end waits by hand.
     var scheduleWait: (Double, @escaping @MainActor @Sendable () -> Void) -> Void
 
@@ -87,6 +94,7 @@ final class ListenPlayer: ObservableObject {
 
     private let engine: PlaybackEngine
     private let system: ListenSystemHooks
+    private let speaker: MeaningSpeaking
     private let defaults: UserDefaults
     private let now: () -> Date
     /// True from play or resume until pause, stop, the end or a failure.
@@ -116,6 +124,23 @@ final class ListenPlayer: ObservableObject {
     private var afterWait: AfterWait = .play
     private var waitToken = 0
 
+    // Read the meaning
+    private enum MeaningPhase: Equatable {
+        case idle
+        /// Paused after this ayah, waiting for its meaning to arrive.
+        case loading(Int)
+        case speaking
+    }
+    private var meaningPhase: MeaningPhase = .idle
+    private var afterMeaning: AfterWait = .play
+    /// The ayah whose meaning is being read, for the recite after me wait that follows it.
+    private var meaningTiming: AyahTiming?
+    private var meaningToken = 0
+    /// Meanings for the current surah, by ayah. A nil value means there is none to read.
+    private var meaningCache: [Int: AyahMeaning?] = [:]
+    private var meaningLoads: [Int: Task<Void, Never>] = [:]
+    private var meaningGeneration = 0
+
     // Resume
     private var lastSavedPosition: Double = 0
 
@@ -133,14 +158,17 @@ final class ListenPlayer: ObservableObject {
         let replayed: Bool
     }
 
+    /// `speaker` defaults to the silent `SimulatedMeaningSpeaker`; only `live()` passes the real voice.
     init(
         engine: PlaybackEngine,
         system: ListenSystemHooks? = nil,
+        speaker: MeaningSpeaking? = nil,
         defaults: UserDefaults = .standard,
         now: @escaping () -> Date = { Date() }
     ) {
         self.engine = engine
         self.system = system ?? QuietListenSystem()
+        self.speaker = speaker ?? SimulatedMeaningSpeaker()
         self.defaults = defaults
         self.now = now
         self.modes = ListenPlayer.loadModes(from: defaults)
@@ -159,9 +187,13 @@ final class ListenPlayer: ObservableObject {
     /// The player the app uses: the simulated engine under `-FSFakeListen`, AVPlayer otherwise.
     static func live(processInfo: ProcessInfo = .processInfo) -> ListenPlayer {
         if ListenLaunch.usesFakes(processInfo: processInfo) {
-            return ListenPlayer(engine: SimulatedEngine(autoAdvances: true), system: QuietListenSystem())
+            return ListenPlayer(
+                engine: SimulatedEngine(autoAdvances: true),
+                system: QuietListenSystem(),
+                speaker: SimulatedMeaningSpeaker(finishesAfter: 3)
+            )
         }
-        return ListenPlayer(engine: AVPlayerEngine(), system: LiveListenSystem())
+        return ListenPlayer(engine: AVPlayerEngine(), system: LiveListenSystem(), speaker: LiveMeaningSpeaker())
     }
 
     var isPlaying: Bool { state == .playing }
@@ -200,7 +232,9 @@ final class ListenPlayer: ObservableObject {
     func pause() {
         guard item != nil else { return }
         endSleepFade()
-        let surahWasEnding = isWaitingForListener && afterWait == .endSurah
+        let surahWasEnding = (isWaitingForListener && afterWait == .endSurah)
+            || (isInMeaning && afterMeaning == .endSurah)
+        cancelMeaning()
         cancelListenerWait()
         if queueTask != nil {
             // Keeps pendingQueueChapter, so resume carries on to the next surah.
@@ -268,8 +302,9 @@ final class ListenPlayer: ObservableObject {
         syncPendingAyah()
         updateMarkers()
         engine.seek(to: target)
-        if isWaitingForListener || pendingStartAyah != nil {
-            // The listener chose a spot: stop waiting (for them or for timings) and play from it.
+        if isWaitingForListener || isInMeaning || pendingStartAyah != nil {
+            // The listener chose a spot: stop waiting (for them, a meaning or timings) and play from it.
+            cancelMeaning()
             cancelListenerWait()
             pendingStartAyah = nil
             if wantsToPlay { engine.play(rate: rate) }
@@ -362,11 +397,20 @@ final class ListenPlayer: ObservableObject {
         finishListenerWait(token: waitToken)
     }
 
+    /// Read the meaning: stops the voice and goes on (to the listener's turn, if recite after me is on).
+    func skipMeaning() {
+        guard isInMeaning else { return }
+        if meaningPhase == .speaking { speaker.stop() }
+        finishMeaning(token: meaningToken)
+    }
+
     /// Stops playback, clears the surah and removes the lock screen controls.
     func stop() {
         rememberPosition()
         endSleepFade()
         cancelSleepTimer()
+        cancelMeaning()
+        resetMeanings()
         cancelListenerWait()
         cancelQueue()
         cancelTimingLoad()
@@ -458,11 +502,20 @@ final class ListenPlayer: ObservableObject {
         if let task = queueTask { await task.value }
     }
 
+    /// Waits for the meaning lookups under way, if any.
+    func meaningLookupFinished() async {
+        for task in Array(meaningLoads.values) {
+            await task.value
+        }
+    }
+
     // MARK: - Starting an item
 
     private func start(_ item: NowPlayingItem, at startPoint: StartPoint) {
         rememberPosition()
         endSleepFade()
+        cancelMeaning()
+        resetMeanings()
         cancelListenerWait()
         cancelQueue()
         cancelTimingLoad()
@@ -531,7 +584,7 @@ final class ListenPlayer: ObservableObject {
             }
             refreshNowPlaying()
         case .buffering(let waiting):
-            guard wantsToPlay, !isWaitingForListener, pendingStartAyah == nil else { return }
+            guard wantsToPlay, !isWaitingForListener, !isInMeaning, pendingStartAyah == nil else { return }
             let next: PlaybackState = waiting ? .loading : .playing
             if state != next {
                 state = next
@@ -553,7 +606,7 @@ final class ListenPlayer: ObservableObject {
     }
 
     private func handleProgress() {
-        let active = wantsToPlay && !isWaitingForListener && pendingStartAyah == nil
+        let active = wantsToPlay && !isWaitingForListener && !isInMeaning && pendingStartAyah == nil
         let crossing = active ? ayahCrossing(atSurahEnd: false) : nil
         var moved = crossing?.replayed ?? false
         if !moved, active, let range = loopRange, position >= range.upperBound {
@@ -564,8 +617,13 @@ final class ListenPlayer: ObservableObject {
         if !moved {
             syncPendingAyah()
         }
-        if let crossing, modes.reciteAfterMe {
-            beginListenerWait(for: crossing.timing, then: .play)
+        if let crossing {
+            // After the ayah's last play: its meaning first, then the listener's turn.
+            if !crossing.replayed, beginMeaningIfNeeded(after: crossing.timing, then: .play) {
+                // The listener's turn, if on, follows the meaning (finishMeaning).
+            } else if modes.reciteAfterMe {
+                beginListenerWait(for: crossing.timing, then: .play)
+            }
         }
         if wantsToPlay, abs(position - lastSavedPosition) >= Self.resumeSaveStep {
             rememberPosition()
@@ -573,6 +631,11 @@ final class ListenPlayer: ObservableObject {
     }
 
     private func handleEnd() {
+        if isInMeaning {
+            // The last ayah's meaning finishes first; completeSurahEnd then applies the sleep timer.
+            afterMeaning = .endSurah
+            return
+        }
         if sleepsAtEndOfSurah {
             sleepsAtEndOfSurah = false
             cancelListenerWait()
@@ -584,6 +647,9 @@ final class ListenPlayer: ObservableObject {
             return
         }
         if pendingStartAyah == nil, let crossing = ayahCrossing(atSurahEnd: true) {
+            if !crossing.replayed, beginMeaningIfNeeded(after: crossing.timing, then: .endSurah) {
+                return
+            }
             if modes.reciteAfterMe {
                 beginListenerWait(for: crossing.timing, then: crossing.replayed ? .play : .endSurah)
                 return
@@ -642,6 +708,7 @@ final class ListenPlayer: ObservableObject {
     }
 
     private func restart(at seconds: Double) {
+        cancelMeaning()
         cancelListenerWait()
         resetAyahRepeat()
         moveInternally(to: seconds)
@@ -653,6 +720,7 @@ final class ListenPlayer: ObservableObject {
 
     /// The surah ended: paused and back at the start, ready to play again.
     private func finishAtStart() {
+        cancelMeaning()
         cancelListenerWait()
         wantsToPlay = false
         state = .paused
@@ -669,6 +737,7 @@ final class ListenPlayer: ObservableObject {
 
     private func fail() {
         endSleepFade()
+        cancelMeaning()
         cancelListenerWait()
         wantsToPlay = false
         engine.pause()
@@ -700,6 +769,7 @@ final class ListenPlayer: ObservableObject {
             return
         }
         forgetPosition(of: current)
+        cancelMeaning()
         cancelListenerWait()
         cancelQueue()
         pendingQueueChapter = chapter
@@ -792,7 +862,11 @@ final class ListenPlayer: ObservableObject {
             ayah = ayahs[index].ayah
             word = ListenTimingLookup.wordPosition(at: position, in: ayahs[index].words)
         }
-        if currentAyah != ayah { currentAyah = ayah }
+        if currentAyah != ayah {
+            currentAyah = ayah
+            // Fetches this ayah's meaning while it plays, so the voice starts without a gap.
+            if let ayah { prefetchMeaning(ayah: ayah) }
+        }
         if currentWord != word { currentWord = word }
     }
 
@@ -870,6 +944,127 @@ final class ListenPlayer: ObservableObject {
         afterWait = .play
     }
 
+    // MARK: - Read the meaning
+
+    /// True from the end of an ayah until its meaning has been read (or found missing).
+    private var isInMeaning: Bool { meaningPhase != .idle }
+
+    /// At the end of an ayah's last play: pauses the recitation and reads its meaning, then goes
+    /// on to `next` (through the listener's turn when recite after me is on). False, with nothing
+    /// changed, when the mode is off, there is no provider, or this ayah has no meaning to read.
+    private func beginMeaningIfNeeded(after timing: AyahTiming, then next: AfterWait) -> Bool {
+        guard modes.readsMeaning, meaningProvider != nil, item != nil else { return false }
+        let ayah = timing.ayah
+        if let cached = meaningCache[ayah] {
+            guard let meaning = cached else { return false }
+            enterMeaning(after: timing, then: next)
+            engine.pause()
+            speakMeaning(meaning)
+            return true
+        }
+        enterMeaning(after: timing, then: next)
+        meaningPhase = .loading(ayah)
+        engine.pause()
+        refreshNowPlaying()
+        prefetchMeaning(ayah: ayah)
+        return true
+    }
+
+    private func enterMeaning(after timing: AyahTiming, then next: AfterWait) {
+        meaningToken += 1
+        meaningTiming = timing
+        afterMeaning = next
+    }
+
+    /// Looks up the meaning of `ayah` in the current surah once, and keeps it for this surah.
+    /// Text with any Arabic script is kept as "nothing to read".
+    private func prefetchMeaning(ayah: Int) {
+        guard modes.readsMeaning, let provider = meaningProvider, let chapter = item?.chapter else { return }
+        guard !meaningCache.keys.contains(ayah), meaningLoads[ayah] == nil else { return }
+        let generation = meaningGeneration
+        meaningLoads[ayah] = Task { @MainActor [weak self] in
+            let loaded = await provider.meaning(chapter: chapter, ayah: ayah)
+            guard let self, self.meaningGeneration == generation, !Task.isCancelled else { return }
+            self.meaningLoads[ayah] = nil
+            let usable: AyahMeaning? = loaded.flatMap { ListenMeaningText.isSpeakable($0.text) ? $0 : nil }
+            self.meaningCache.updateValue(usable, forKey: ayah)
+            self.meaningArrived(ayah: ayah)
+        }
+    }
+
+    private func meaningArrived(ayah: Int) {
+        guard meaningPhase == .loading(ayah) else { return }
+        if let cached = meaningCache[ayah], let meaning = cached {
+            speakMeaning(meaning)
+        } else {
+            finishMeaning(token: meaningToken)
+        }
+    }
+
+    private func speakMeaning(_ meaning: AyahMeaning) {
+        let token = meaningToken
+        meaningPhase = .speaking
+        // Never a computer voice for Arabic, Quran or dua (plan section 6).
+        guard ListenMeaningText.isSpeakable(meaning.text) else {
+            finishMeaning(token: token)
+            return
+        }
+        speakingMeaning = meaning
+        refreshNowPlaying()
+        speaker.speak(meaning.text) { [weak self] in
+            self?.finishMeaning(token: token)
+        }
+    }
+
+    /// The meaning is done: the listener's turn if recite after me is on, otherwise `afterMeaning`.
+    private func finishMeaning(token: Int) {
+        guard token == meaningToken, isInMeaning else { return }
+        let timing = meaningTiming
+        let next = afterMeaning
+        clearMeaning()
+        if modes.reciteAfterMe, let timing {
+            beginListenerWait(for: timing, then: next)
+            return
+        }
+        switch next {
+        case .play:
+            guard wantsToPlay else {
+                refreshNowPlaying()
+                return
+            }
+            state = .playing
+            engine.play(rate: rate)
+            refreshNowPlaying()
+        case .endSurah:
+            completeSurahEnd()
+        }
+    }
+
+    /// Stops the voice at once and drops the meaning step, without going on.
+    private func cancelMeaning() {
+        guard isInMeaning else { return }
+        if meaningPhase == .speaking { speaker.stop() }
+        clearMeaning()
+    }
+
+    private func clearMeaning() {
+        meaningToken += 1
+        meaningPhase = .idle
+        meaningTiming = nil
+        afterMeaning = .play
+        if speakingMeaning != nil { speakingMeaning = nil }
+    }
+
+    /// Forgets the meanings of the current surah, for a new surah or a stop.
+    private func resetMeanings() {
+        meaningGeneration += 1
+        for task in meaningLoads.values {
+            task.cancel()
+        }
+        meaningLoads = [:]
+        meaningCache = [:]
+    }
+
     // MARK: - Modes
 
     private static func loadModes(from defaults: UserDefaults) -> PlayModes {
@@ -891,6 +1086,12 @@ final class ListenPlayer: ObservableObject {
         }
         if old.reciteAfterMe, !modes.reciteAfterMe, isWaitingForListener {
             finishListenerWait(token: waitToken)
+        }
+        if old.readsMeaning, !modes.readsMeaning {
+            skipMeaning()
+        }
+        if !old.readsMeaning, modes.readsMeaning, let ayah = currentAyah {
+            prefetchMeaning(ayah: ayah)
         }
     }
 
@@ -946,6 +1147,11 @@ final class ListenPlayer: ObservableObject {
         guard let end = sleepTimerEnd, now() >= end else { return }
         cancelSleepTimer()
         guard wantsToPlay else { return }
+        if isInMeaning {
+            // The recitation is already silent: stop the voice and pause at once.
+            pause()
+            return
+        }
         isSleepFading = true
         engine.fadeOut(over: Self.sleepFadeSeconds) { [weak self] in
             self?.finishSleepFade()
@@ -978,7 +1184,7 @@ final class ListenPlayer: ObservableObject {
             system.updateNowPlaying(nil)
             return
         }
-        let sounding = state == .playing && !isWaitingForListener
+        let sounding = state == .playing && !isWaitingForListener && !isInMeaning
         system.updateNowPlaying(ListenNowPlayingInfo(
             title: item.chapterName,
             artist: item.reciter.name,

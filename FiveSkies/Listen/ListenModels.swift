@@ -117,11 +117,14 @@ struct PlayModes: Equatable, Codable, Sendable {
     var reciteAfterMe = false
     /// Pause when a prayer time arrives and offer to resume. On by default.
     var pausesForPrayer = true
+    /// After each ayah, an English voice reads the user's chosen translation, then the
+    /// recitation goes on. Needs timings. English text only; never a computer voice for Arabic.
+    var readsMeaning = false
 
     init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case surahEnd, ayahRepeat, reciteAfterMe, pausesForPrayer
+        case surahEnd, ayahRepeat, reciteAfterMe, pausesForPrayer, readsMeaning
     }
 
     /// Fields missing from an older saved copy keep their defaults, so adding a field never resets the rest.
@@ -131,6 +134,7 @@ struct PlayModes: Equatable, Codable, Sendable {
         ayahRepeat = (try? container.decodeIfPresent(Int.self, forKey: .ayahRepeat)) ?? 1
         reciteAfterMe = (try? container.decodeIfPresent(Bool.self, forKey: .reciteAfterMe)) ?? false
         pausesForPrayer = (try? container.decodeIfPresent(Bool.self, forKey: .pausesForPrayer)) ?? true
+        readsMeaning = (try? container.decodeIfPresent(Bool.self, forKey: .readsMeaning)) ?? false
     }
 }
 
@@ -138,4 +142,16 @@ struct PlayModes: Equatable, Codable, Sendable {
 /// Built by FiveSkies/Listen/UI/ from the catalog and the bundled surah names.
 protocol ListenQueueResolving: Sendable {
     func item(chapter: Int, reciter: Reciter) async throws -> NowPlayingItem
+}
+
+/// The English meaning of one ayah, from the translation the user chose, with its source name.
+struct AyahMeaning: Equatable, Sendable {
+    let text: String
+    /// For example the translator's name, shown while it is read.
+    let source: String
+}
+
+/// Supplies the meaning to read after an ayah. The lead wires it from TranslationStore.
+protocol AyahMeaningProviding: Sendable {
+    func meaning(chapter: Int, ayah: Int) async -> AyahMeaning?
 }

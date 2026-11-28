@@ -70,6 +70,15 @@ struct TranslationStorage: Sendable {
         return base.appendingPathComponent("Translations", isDirectory: true)
     }
 
+    /// Application Support/Transliteration: the transliteration is kept apart from the
+    /// translations, so it never shows up as a translation and is removed on its own.
+    static func transliterationDirectory(fileManager: FileManager = .default) -> URL? {
+        guard let base = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        return base.appendingPathComponent("Transliteration", isDirectory: true)
+    }
+
     static func needsRefresh(lastSyncedAt: Date, now: Date, maxAge: TimeInterval = TranslationStorage.maxAge) -> Bool {
         now.timeIntervalSince(lastSyncedAt) > maxAge
     }
