@@ -35,4 +35,23 @@ final class LearnUITests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
     }
+
+    @MainActor
+    func testDuasFromTheQuranShowWholeAyahs() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-FSFixedPhase", "isha"]
+        app.launch()
+
+        let learnTab = app.tabBars.buttons["Learn"]
+        XCTAssertTrue(learnTab.waitForExistence(timeout: 20), "The Learn tab did not appear")
+        learnTab.tap()
+        let duas = app.buttons["learnOpenDuas"]
+        XCTAssertTrue(duas.waitForExistence(timeout: 20), "The Duas card did not appear")
+        duas.tap()
+        XCTAssertTrue(app.buttons["quranDuaOpen-0"].waitForExistence(timeout: 20), "The duas did not load")
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "quran-duas"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
 }

@@ -30,12 +30,27 @@ struct CommonWordEntry: Hashable, Identifiable, Sendable {
 
 /// Common words (plan L4), counted on the device from the bundled text. Pure.
 ///
-/// Every ayah's `displayText` is split with `AyahWordSplitter` (rule W2) and each word's scalar
-/// slice is counted as it is: exact written forms, not roots. A sign-only token is part of the word
-/// before it (the splitter's rule), so a form with a pause mark is a different form. The basmala that
+/// Every ayah's `displayText` is split with `AyahWordSplitter` (rule W2). The counting key is the
+/// word token as stored, with its vowel marks, without any sign-only token the splitter attached
+/// to it (FABLE decision 1, Nov 28): a word with a pause sign counts as the same form. The key is
+/// itself a slice of the stored string (the start of the word's range). Exact written forms, not
+/// roots; vowel marks are never stripped. The basmala that
 /// the reader shows as a header is not part of `displayText` and is not counted.
 /// Ties are broken by first occurrence in Quran order, so the ranking is stable.
 struct CommonWordsIndex: Sendable {
+    /// The counting key of a word's W2 slice: its scalars up to the first separator, so an
+    /// attached sign-only token is left out. Never changes or strips a scalar.
+    static func formKey(_ slice: Substring.UnicodeScalarView) -> String {
+        if let end = slice.firstIndex(where: AyahWordSplitter.isSeparator) {
+            return String(slice[slice.startIndex..<end])
+        }
+        return String(slice)
+    }
+
+    static func formKey(_ slice: String) -> String {
+        formKey(Substring(slice).unicodeScalars)
+    }
+
     /// Rank order: rank 1 first.
     let entries: [CommonWordEntry]
     /// Every word counted, all forms together.
@@ -61,7 +76,7 @@ struct CommonWordsIndex: Sendable {
             let scalars = text.unicodeScalars
             let ranges = AyahWordSplitter.wordRanges(in: text)
             for (offset, range) in ranges.enumerated() {
-                let form = String(scalars[range])
+                let form = Self.formKey(scalars[range])
                 let here = CommonWordOccurrence(sura: ayah.sura, aya: ayah.number, wordPosition: offset + 1)
                 total += 1
                 if let slot = slots[form] {

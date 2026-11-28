@@ -20,7 +20,7 @@ struct StartHereView: View {
 
     var body: some View {
         let steps = makeSteps()
-        let nextSura = StartHerePath.nextStep(known: Set(steps.filter(\.isComplete).map(\.sura.number)))
+        let nextSura = StartHerePath.nextStep(known: Set(steps.filter(\.isComplete).map(\.sura.number)), path: steps.map(\.sura.number))
         return ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 MoreScreenTitle(text: "Start here", identifier: "startHereTitle")
@@ -46,6 +46,13 @@ struct StartHereView: View {
                         onRead: { onOpen(QuranReaderTarget(sura: step.sura.number, aya: 1)) }
                     )
                 }
+
+                Text(StartHerePath.teacherNote)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(MorePalette.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 4)
+                    .accessibilityIdentifier("pathTeacherNote")
             }
             .foregroundStyle(.white)
             .padding(.horizontal, 16)
@@ -58,7 +65,7 @@ struct StartHereView: View {
 
     private func makeSteps() -> [StartHereStep] {
         var steps: [StartHereStep] = []
-        for (offset, number) in StartHerePath.surahs.enumerated() {
+        for (offset, number) in StartHerePath.surahs(in: data).enumerated() {
             guard let sura = data.sura(number) else { continue }
             let known = progress.knownCount(in: StartHerePath.refs(sura: number, ayahCount: sura.ayahCount))
             steps.append(StartHereStep(position: offset + 1, sura: sura, known: known))

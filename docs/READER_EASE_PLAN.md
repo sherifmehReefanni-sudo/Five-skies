@@ -54,7 +54,9 @@ docs/LEARN_LISTEN_PLAN.md section 5, N1 to N7, unchanged.
 
 More reciters, The Clear Quran and Saheeh International, timings beyond surahs 1 and 2, and review condition 3 ALL wait on Quran Foundation production access. The request has not been sent. The privacy page and the credits page it needs are done. Reef opens Developer Console, requests production for the scopes the app uses, and pastes:
 
-> Five Skies is a free iPhone app for prayer times, Qibla and Quran reading and listening. No ads, no account, no tracking; optional tips only. Calls go through our own relay, which stores no content. Offline copies of translations use Content Sync and sync at least every 7 days. Recitations stream from your hosts with credit to the reciter and Quran Foundation; offline downloads happen only when the user asks, stay in the app's private storage, and follow your offline download conditions. Privacy policy: https://sherifmehreefanni-sudo.github.io/Five-skies/privacy.html. Contact: fiveskiesapp@gmail.com.
+> Five Skies is a free iPhone app for prayer times, Qibla and Quran reading and listening. No ads, no account, no tracking; optional tips only. Calls go through our own relay, which stores no content. Offline copies of translations use Content Sync and sync at least every 7 days. Recitations and word audio stream from your hosts with credit to the reciter and Quran Foundation; nothing is downloaded for offline listening today, and if we add downloads they will happen only when the user asks, stay in the app's private storage, and follow your offline download conditions. Privacy policy: https://sherifmehreefanni-sudo.github.io/Five-skies/privacy.html. Contact: fiveskiesapp@gmail.com.
+
+Opus, Nov 28: the privacy address above shows "Site not found" because GitHub Pages is off for the repo (`has_pages: false`). Reef turns it on (HANDOFF, Nov 28), then Opus checks the page loads before he sends this.
 
 Opus: confirm the privacy page address and list the exact scope names for him before he sends it.
 

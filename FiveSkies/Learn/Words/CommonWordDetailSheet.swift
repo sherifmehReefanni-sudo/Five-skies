@@ -272,7 +272,8 @@ enum CommonWordMeaning {
         let built = AyahWordsBuilder.rows(storedText: storedText, entries: entries)
         guard built.aligned,
               let row = built.rows.first(where: { $0.position == wordPosition }),
-              row.arabic == form
+              let arabic = row.arabic,
+              CommonWordsIndex.formKey(arabic) == form
         else {
             return nil
         }

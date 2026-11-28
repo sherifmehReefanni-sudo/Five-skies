@@ -2,27 +2,52 @@ import XCTest
 @testable import FiveSkies
 
 final class StartHerePathTests: XCTestCase {
-    func testManifestIsTheAgreedOrder() {
-        XCTAssertEqual(StartHerePath.surahs, [1, 112, 113, 114, 111, 110, 109, 108, 107, 106, 105, 104, 103])
-        XCTAssertEqual(Set(StartHerePath.surahs).count, StartHerePath.surahs.count, "A surah appears twice")
-        XCTAssertTrue(StartHerePath.surahs.allSatisfy { (1...114).contains($0) })
-        XCTAssertEqual(StartHerePath.surahs.first, 1)
+    private static let path = [1, 112, 113, 114, 108, 103]
+
+    func testPathIsComputedFromTheBundledText() throws {
+        // FABLE decision 2: the order is worked out from ayah and word counts, not typed.
+        let data = try QuranBundle.load()
+        let path = StartHerePath.surahs(in: data)
+        XCTAssertEqual(Array(path.prefix(4)), StartHerePath.opening)
+        XCTAssertEqual(Set(path.dropFirst(4)), Set(StartHerePath.shortSurahs))
+        XCTAssertEqual(Set(path).count, path.count, "A surah appears twice")
+        // Shortest first by ayah count, then words.
+        let rest = Array(path.dropFirst(4))
+        for (earlier, later) in zip(rest, rest.dropFirst()) {
+            let a = data.ayahs(inSura: earlier).count
+            let b = data.ayahs(inSura: later).count
+            XCTAssertLessThanOrEqual(a, b)
+        }
+        // The result Fable expected, checked here rather than written into the app.
+        XCTAssertEqual(rest, [108, 103, 110, 106, 111, 105, 109, 107, 104])
+    }
+
+    func testTiesBreakByWordsThenLaterSurah() throws {
+        let data = try QuranBundle.load()
+        // 105 and 111 both have 5 ayahs and the same number of words: the later surah comes first.
+        XCTAssertEqual(StartHerePath.order([105, 111], in: data), [111, 105])
+        XCTAssertEqual(StartHerePath.order([110, 103, 108], in: data), [108, 103, 110])
     }
 
     func testNextStepIsTheFirstNotFullyKnown() {
-        XCTAssertEqual(StartHerePath.nextStep(known: []), 1)
-        XCTAssertEqual(StartHerePath.nextStep(known: [1]), 112)
-        XCTAssertEqual(StartHerePath.nextStep(known: [1, 112, 113]), 114)
+        let path = Self.path
+        XCTAssertEqual(StartHerePath.nextStep(known: [], path: path), 1)
+        XCTAssertEqual(StartHerePath.nextStep(known: [1], path: path), 112)
+        XCTAssertEqual(StartHerePath.nextStep(known: [1, 112, 113], path: path), 114)
         // Knowing a later surah first does not skip an earlier step.
-        XCTAssertEqual(StartHerePath.nextStep(known: [112, 113]), 1)
-        XCTAssertEqual(StartHerePath.nextStep(known: [1, 113]), 112)
+        XCTAssertEqual(StartHerePath.nextStep(known: [112, 113], path: path), 1)
+        XCTAssertEqual(StartHerePath.nextStep(known: [1, 113], path: path), 112)
         // Surahs that are not on the path change nothing.
-        XCTAssertEqual(StartHerePath.nextStep(known: [2, 36]), 1)
+        XCTAssertEqual(StartHerePath.nextStep(known: [2, 36], path: path), 1)
     }
 
     func testNextStepIsNilWhenAllKnown() {
-        XCTAssertNil(StartHerePath.nextStep(known: Set(StartHerePath.surahs)))
-        XCTAssertNil(StartHerePath.nextStep(known: Set(StartHerePath.surahs).union([2])))
+        XCTAssertNil(StartHerePath.nextStep(known: Set(Self.path), path: Self.path))
+        XCTAssertNil(StartHerePath.nextStep(known: Set(Self.path).union([2]), path: Self.path))
+    }
+
+    func testTeacherNoteIsPlain() {
+        XCTAssertFalse(StartHerePath.teacherNote.contains("\u{2014}"))
     }
 
     func testCompleteAndProgressText() {

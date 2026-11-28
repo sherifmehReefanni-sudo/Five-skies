@@ -119,20 +119,19 @@ final class CommonWordsTests: XCTestCase {
 
     // MARK: - Splitter rules
 
-    func testSignOnlyTokenJoinsTheWordBeforeIt() throws {
-        // "B sign" is one word, exactly as the splitter slices it, and a different form from "B".
+    func testAWordWithAPauseSignIsTheSameForm() throws {
+        // FABLE decision 1: "B sign" and "B" count as one form, keyed on the word token as stored.
         let data = makeData([[
             Self.line([Self.wordA, Self.wordB, Self.pauseSign, Self.wordC]),
             Self.line([Self.wordB]),
         ]])
         let index = CommonWordsIndex(data: data)
-        let joined = Self.wordB + " " + Self.pauseSign
         XCTAssertEqual(index.totalWordCount, 4)
-        XCTAssertEqual(index.distinctFormCount, 4)
-        let signed = try XCTUnwrap(entry(index, joined))
-        XCTAssertEqual(signed.count, 1)
-        XCTAssertEqual(signed.firstOccurrence, CommonWordOccurrence(sura: 1, aya: 1, wordPosition: 2))
-        XCTAssertEqual(try XCTUnwrap(entry(index, Self.wordB)).firstOccurrence, CommonWordOccurrence(sura: 1, aya: 2, wordPosition: 1))
+        XCTAssertEqual(index.distinctFormCount, 3)
+        XCTAssertNil(entry(index, Self.wordB + " " + Self.pauseSign))
+        let b = try XCTUnwrap(entry(index, Self.wordB))
+        XCTAssertEqual(b.count, 2)
+        XCTAssertEqual(b.firstOccurrence, CommonWordOccurrence(sura: 1, aya: 1, wordPosition: 2))
         // Word C keeps position 3: the sign is not a word.
         XCTAssertEqual(try XCTUnwrap(entry(index, Self.wordC)).firstOccurrence.wordPosition, 3)
     }
@@ -145,13 +144,18 @@ final class CommonWordsTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(entry(index, Self.wordA)).firstOccurrence.wordPosition, 1)
     }
 
-    func testFormsAreExactSlicesOfTheStoredString() {
+    func testFormsAreSlicesOfTheStoredString() {
+        // Each form is the start of its word's W2 range, scalar for scalar, with vowel marks kept.
         let stored = Self.line([Self.wordA, Self.wordB, Self.pauseSign, Self.wordC])
         let index = CommonWordsIndex(data: makeData([[stored]]))
         let ranges = AyahWordSplitter.wordRanges(in: stored)
-        let slices = ranges.map { Array(stored.unicodeScalars[$0]) }
-        let forms = index.entries.sorted { $0.firstOccurrence < $1.firstOccurrence }.map { Array($0.form.unicodeScalars) }
-        XCTAssertEqual(forms, slices)
+        let forms = index.entries.sorted { $0.firstOccurrence < $1.firstOccurrence }.map(\.form)
+        XCTAssertEqual(forms.count, ranges.count)
+        for (form, range) in zip(forms, ranges) {
+            let slice = Array(stored.unicodeScalars[range])
+            XCTAssertEqual(Array(form.unicodeScalars), Array(slice.prefix(form.unicodeScalars.count)))
+        }
+        XCTAssertEqual(forms, [Self.wordA, Self.wordB, Self.wordC])
     }
 
     func testBasmalaHeaderIsNotCounted() {
@@ -239,7 +243,7 @@ final class CommonWordsTests: XCTestCase {
     func testMeaningComesFromTheAlignedRowAtThePosition() throws {
         let stored = Self.line([Self.wordA, Self.wordB, Self.pauseSign, Self.wordC])
         let row = try XCTUnwrap(
-            CommonWordMeaning.lookup(storedText: stored, entries: entries([1, 2, 3]), wordPosition: 2, form: Self.wordB + " " + Self.pauseSign)
+            CommonWordMeaning.lookup(storedText: stored, entries: entries([1, 2, 3]), wordPosition: 2, form: Self.wordB)
         )
         XCTAssertEqual(row.meaning, "Meaning 2")
         XCTAssertEqual(row.transliteration, "word-2")

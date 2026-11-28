@@ -28,3 +28,13 @@ All values live in `FiveSkies/Prayer/DayDefinitions.swift` and `FiveSkies/DayCar
 ## Status
 
 No answers yet. Default numbers (15, 5, 15) were chosen by the builder as common practice; Fable did not change them because it has no cited source for a better number. They are UNVERIFIED.
+
+## C. Duas from the Quran (Learn tab, added Nov 28, 2026)
+
+Each row shows the whole ayah from the bundled text and the meaning from the user's chosen translation. Only the title below is ours.
+
+16. 28:24, title "For provision". Acceptable as a dua for provision?
+17. 3:173, title "Relying on Allah". Acceptable?
+18. 2:201, title "Good in this life and the next". Acceptable?
+19. 25:74, title "For spouse and children". Acceptable?
+20. 17:24, title "For parents". Acceptable?

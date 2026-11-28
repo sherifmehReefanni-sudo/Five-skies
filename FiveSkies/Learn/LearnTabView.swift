@@ -5,7 +5,7 @@ import SwiftUI
 /// opens in the Quran tab through `QuranNavigator`.
 struct LearnTabView: View {
     enum Destination: Hashable {
-        case review, path, memorize, words, plan
+        case review, path, memorize, duas, words, plan
     }
 
     @EnvironmentObject private var quran: QuranStore
@@ -48,6 +48,14 @@ struct LearnTabView: View {
                         identifier: "learnOpenMemorize"
                     ) {
                         LearnCardLine(text: "Practise any surah ayah by ayah")
+                    }
+                    card(
+                        .duas,
+                        symbol: "hands.sparkles",
+                        title: "Duas from the Quran",
+                        identifier: "learnOpenDuas"
+                    ) {
+                        LearnCardLine(text: "Whole ayahs, with the meaning")
                     }
                     card(
                         .words,
@@ -128,6 +136,8 @@ struct LearnTabView: View {
                 StartHereView(data: data, onLearn: learn, onOpen: open)
             case .memorize:
                 MemorizeView()
+            case .duas:
+                QuranDuasView(data: data, onOpen: open)
             case .words:
                 CommonWordsView(data: data, provider: wordsProvider, onOpen: open)
             case .plan:
