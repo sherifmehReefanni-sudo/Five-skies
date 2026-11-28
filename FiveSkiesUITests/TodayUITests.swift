@@ -24,6 +24,26 @@ final class TodayUITests: XCTestCase {
     }
 
     @MainActor
+    func testContinueCardOpensTheReader() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-FSFixedPhase", "isha", "-FSContinueSample"]
+        app.launch()
+        let card = app.buttons["continueCard"]
+        XCTAssertTrue(card.waitForExistence(timeout: 20), "The continue card did not appear")
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "continue-card"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        card.tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["readerTitle"].waitForExistence(timeout: 20)
+                || app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'ayah-'")).firstMatch.waitForExistence(timeout: 5),
+            "The continue card did not open the reader"
+        )
+        app.terminate()
+    }
+
+    @MainActor
     func testTappingATileMarksItAsPrayed() throws {
         let app = launchApp(phase: "dhuhr")
         let tile = app.buttons["tile-asr"]

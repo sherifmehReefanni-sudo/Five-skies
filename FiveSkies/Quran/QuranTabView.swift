@@ -62,9 +62,11 @@ struct QuranTabView: View {
                             Button {
                                 showsGoTo = true
                             } label: {
-                                Label("Go to", systemImage: "arrow.right.circle")
-                                    .labelStyle(.titleAndIcon)
-                                    .font(.subheadline.weight(.heavy))
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.right.circle")
+                                    Text("Go to")
+                                }
+                                .font(.subheadline.weight(.heavy))
                             }
                             .accessibilityHint("Jump to a surah, an ayah such as 2:255, a page or a juz")
                             .accessibilityIdentifier("quranGoTo")
