@@ -215,56 +215,54 @@ private struct AyahWordRowView: View {
     @ScaledMetric(relativeTo: .title) private var arabicSize: CGFloat = 34
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // One line per word: English on the left, the Arabic slice and play on the right,
+        // so a word does not take the tall line box of the Quran font twice.
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(verbatim: "Word \(row.position)")
+                    .font(.caption2.weight(.heavy))
+                    .foregroundStyle(QuranPalette.gold.opacity(0.8))
+                if let transliteration = row.transliteration {
+                    Text(verbatim: transliteration)
+                        .font(.body.italic())
+                        .foregroundStyle(QuranPalette.gold)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let meaning = row.meaning {
+                    Text(verbatim: meaning)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             if let arabic = row.arabic {
                 Text(verbatim: arabic)
                     .font(QuranPalette.arabicFont(size: arabicSize))
                     .foregroundStyle(QuranPalette.arabicText)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, arabicSize * 0.15)
+                    .fixedSize()
                     .environment(\.layoutDirection, .rightToLeft)
                     .quranSpeechLanguage("ar")
                     .accessibilityIdentifier("wordArabic-\(row.position)")
             }
-
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(verbatim: "Word \(row.position)")
-                        .font(.caption2.weight(.heavy))
-                        .foregroundStyle(QuranPalette.gold.opacity(0.8))
-                    if let transliteration = row.transliteration {
-                        Text(verbatim: transliteration)
-                            .font(.body.italic())
-                            .foregroundStyle(QuranPalette.gold)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    if let meaning = row.meaning {
-                        Text(verbatim: meaning)
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+            if let url = row.audioURL {
+                Button {
+                    onPlay(url)
+                } label: {
+                    Image(systemName: isPlaying ? "stop.fill" : "play.fill")
+                        .font(.body.weight(.heavy))
+                        .foregroundStyle(MorePalette.ink)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(MorePalette.goldGradient))
                 }
-                Spacer(minLength: 8)
-                if let url = row.audioURL {
-                    Button {
-                        onPlay(url)
-                    } label: {
-                        Image(systemName: isPlaying ? "stop.fill" : "play.fill")
-                            .font(.body.weight(.heavy))
-                            .foregroundStyle(MorePalette.ink)
-                            .frame(width: 44, height: 44)
-                            .background(Circle().fill(MorePalette.goldGradient))
-                    }
-                    .buttonStyle(PressScaleButtonStyle(pressedScale: 0.92))
-                    .accessibilityLabel(isPlaying ? "Stop word \(row.position)" : "Play word \(row.position)")
-                    .accessibilityIdentifier("wordPlay-\(row.position)")
-                }
+                .buttonStyle(PressScaleButtonStyle(pressedScale: 0.92))
+                .accessibilityLabel(isPlaying ? "Stop word \(row.position)" : "Play word \(row.position)")
+                .accessibilityIdentifier("wordPlay-\(row.position)")
             }
         }
-        .padding(16)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .moreGlass(.light, cornerRadius: 20)
+        .moreGlass(.dark, cornerRadius: 20)
     }
 }

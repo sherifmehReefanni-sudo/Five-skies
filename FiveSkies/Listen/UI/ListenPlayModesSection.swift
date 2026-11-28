@@ -76,7 +76,9 @@ struct ListenPlayModesSection: View {
                     .accessibilityAddTraits(.isHeader)
                     .accessibilityIdentifier("presetsHeader")
                 Spacer(minLength: 8)
-                customChip(isSelected: selected == nil)
+                if selected == nil {
+                    customChip(isSelected: true)
+                }
             }
             .padding(.horizontal, 4)
 
