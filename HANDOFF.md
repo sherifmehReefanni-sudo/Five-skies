@@ -248,3 +248,23 @@ Condition 3 (production W4 for all 114 surahs and the letter-count probe) stays 
 Next: TestFlight for C1 needs Reef's yes.
 
 TestFlight run 46086121329 (Reef yes, 19:06 ET) succeeded: build 0.1.0 (7) with round C1 (Quran and Listen merged, play modes, pause for prayer, follow along on surahs 1 and 2). Next: Reef checks it on his phone, then round C2 (Learn tab) per docs/LEARN_LISTEN_PLAN.md.
+
+## Reef's ask (Nov 27, 19:49 ET): what else, and make it more intuitive. Opus's list for Fable to plan
+
+Reef feels the reader is less intuitive than other Quran apps and wants more options and more reciters. Opus's view, from the build and from App Store listings of Quran.com, Tarteel, Quran Habit, Quranify, Al Quran (Greentech), Al-Islam (Nov 27):
+Ease of use, no new content needed (Opus can build once planned):
+U1. Ayah toolbar on tap (play from here, bookmark, copy, share, word by word, tafsir later) instead of the confirmation dialog.
+U2. Tap a word: meaning, transliteration, and hear it (QF word audio; terms check L2).
+U3. Player presets instead of many toggles: Listen, Memorize (repeat each ayah, hide text), Understand (meaning read after each ayah, transliteration on).
+U4. Tapping the now playing bar jumps the reader to the playing ayah.
+U5. One "Reading" settings sheet: Arabic size, translation, transliteration, word by word, background (sky or plain dark or sepia for long reading).
+U6. Search Quran text and jump by reference ("2:255", page, juz), not only surah names.
+U7. Continue reading and continue listening cards on Today.
+U8. Memorize: hide text and peek, mark known (free; Tarteel charges for hidden verses mode).
+Needs a source or license decision (Fable checkpoint 2):
+C1. Mushaf page view (604 page Madani layout): page images or a QPC font set; license.
+C2. Tafsir (QF offers tafsirs; which one, and terms).
+C3. Tajweed colour-coded text (QF has a tajweed script; display change, checkpoint 1).
+C4. More reciters: production access (prelive has 4). Competitors list about 40, 11 with word highlighting.
+C5. Reading plans and khatm tracker (ours, no religious text) and translation "read like a book" mode.
+Later or not now: voice search and recitation mistake detection (needs speech recognition we cannot vouch for; plan L6).
