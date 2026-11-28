@@ -166,11 +166,12 @@ private struct TodayScreen: View {
                 service: service,
                 place: place,
                 preferences: settings.alertPreferences,
-                now: now
+                now: now,
+                isPrivate: settings.privateReminders
             )
         }
         .sheet(isPresented: $showsSettings) {
-            SettingsView()
+            SettingsView(place: place)
                 .environmentObject(settings)
                 .environmentObject(scheduler)
         }
@@ -287,6 +288,7 @@ private struct TodayScreen: View {
 }
 
 private struct NextPrayerView: View {
+    @EnvironmentObject private var settings: AppSettings
     let next: UpcomingPrayer
     let now: Date
     /// The current period, such as "Fajr" or "Morning", for the "Now:" line.
@@ -331,7 +333,16 @@ private struct NextPrayerView: View {
                 .animation(motionEnabled ? .easeInOut(duration: 0.6) : nil, value: name)
                 .shadow(color: Color(hex: 0x071433, opacity: 0.5), radius: 20, y: 10)
                 .accessibilityIdentifier("nextPrayerName")
+                .explainsTerm(settings.newToIslam && !isLocating ? GlossaryTerm(next.prayer) : nil)
                 .riseIn(revealed: revealed, delay: delay(2))
+            if settings.newToIslam && !isLocating {
+                // Plan N2: the plain label under the name.
+                Text(verbatim: next.prayer.plainLabel.prefix(1).uppercased() + next.prayer.plainLabel.dropFirst())
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .shadow(color: Color(hex: 0x071433, opacity: 0.5), radius: 6, y: 2)
+                    .accessibilityIdentifier("nextPrayerPlainLabel")
+            }
             Text(isLocating ? "--:--" : next.time.formatted(timeStyle))
                 .font(.title2.weight(.bold))
                 .shadow(color: Color(hex: 0x071433, opacity: 0.6), radius: 7, y: 2)

@@ -115,6 +115,21 @@ final class GoalsTests: XCTestCase {
 
     // MARK: - No deadline, gaps forgiven
 
+    func testOnePrayerADayCountsAnyMarkedPrayer() throws {
+        let counter = GoalCounter(timeZone: try newYork())
+        let goal = PersonalGoal(kind: .onePrayerDays, target: 7, startKey: "2026-11-03")
+        let days: [String: Set<Prayer>] = [
+            "2026-11-01": [.fajr],
+            "2026-11-03": [.maghrib],
+            "2026-11-05": [],
+            "2026-11-08": [.fajr, .isha]
+        ]
+        let today = try date(counter, 2026, 11, 10)
+        XCTAssertEqual(counter.count(for: goal, today: today, prayedDays: days, dhikr: DhikrTotals()), 2)
+        XCTAssertEqual(goal.title, "One prayer a day, 7 days")
+        XCTAssertFalse(GoalKind.onePrayerDays.isManual)
+    }
+
     func testAllFiveDaysHasNoDeadlineAndForgivesGaps() throws {
         let counter = GoalCounter(timeZone: try newYork())
         let goal = PersonalGoal(kind: .allFiveDays, target: 3, startKey: "2026-11-03")

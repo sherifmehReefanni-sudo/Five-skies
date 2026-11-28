@@ -15,6 +15,7 @@ final class NotificationScheduler: ObservableObject {
         let service: PrayerTimesService
         let place: Place
         var preferences: AlertPreferences
+        let isPrivate: Bool
     }
 
     private var lastContext: Context?
@@ -72,9 +73,16 @@ final class NotificationScheduler: ObservableObject {
 
     /// Replaces this app's pending notifications with a fresh plan for today and tomorrow,
     /// and refreshes the night alarm. Days and day keys are worked out in the place's own time zone.
-    func reschedule(service base: PrayerTimesService, place: Place, preferences: AlertPreferences, now: Date) {
+    /// `isPrivate` (plan N6, `AppSettings.privateReminders`) gives every alert the private wording.
+    func reschedule(
+        service base: PrayerTimesService,
+        place: Place,
+        preferences: AlertPreferences,
+        now: Date,
+        isPrivate: Bool = false
+    ) {
         guard isEnabled else { return }
-        lastContext = Context(service: base, place: place, preferences: preferences)
+        lastContext = Context(service: base, place: place, preferences: preferences, isPrivate: isPrivate)
 
         let service = base.inTimeZone(place.timeZone)
         let coordinate = place.coordinate
@@ -119,7 +127,11 @@ final class NotificationScheduler: ObservableObject {
             // One refresh at a time, and only the newest one runs.
             await previous?.value
             guard current == self.generation else { return }
-            let usesAlarmKit = await NightAlarmBridge.sync(plannedNights, enabled: nightSettings.isEnabled)
+            let usesAlarmKit = await NightAlarmBridge.sync(
+                plannedNights,
+                enabled: nightSettings.isEnabled,
+                isPrivate: isPrivate
+            )
             guard current == self.generation else { return }
             let plan = NotificationPlan.full(
                 days: plannedDays,
@@ -127,7 +139,8 @@ final class NotificationScheduler: ObservableObject {
                 preferences: preferences,
                 nightAlarms: usesAlarmKit ? [] : plannedNights,
                 now: now,
-                calendar: calendar
+                calendar: calendar,
+                isPrivate: isPrivate
             )
             self.apply(plan)
         }
@@ -168,7 +181,8 @@ final class NotificationScheduler: ObservableObject {
             service: context.service,
             place: context.place,
             preferences: context.preferences,
-            now: Date()
+            now: Date(),
+            isPrivate: context.isPrivate
         )
     }
 

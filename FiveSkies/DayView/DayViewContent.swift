@@ -7,6 +7,13 @@ struct DayTimeRow: Identifiable, Equatable {
     let start: Date
     /// nil for a single moment.
     let end: Date?
+    /// The obligatory rakah count for a prayer row (`RakahCount`); nil for every other row.
+    var rakahs: Int? = nil
+
+    /// "2 rakahs" for a prayer row, nil otherwise.
+    var rakahCaption: String? {
+        RakahCount.caption(for: rakahs)
+    }
 
     /// One readable sentence for VoiceOver, as in "Fajr, 5:34 AM to 6:52 AM".
     func spokenText(_ format: Date.FormatStyle) -> String {
@@ -26,12 +33,18 @@ struct DayTimeRow: Identifiable, Equatable {
 
 /// The rows and labels of the Day view, worked out from a `DaySchedule`. No astronomy here.
 enum DayViewContent {
-    /// Fajr, Sunrise, Dhuhr, Asr, Maghrib and Isha, each prayer with its window.
+    /// Fajr, Sunrise, Dhuhr, Asr, Maghrib and Isha, each prayer with its window and rakah count.
     static func prayerRows(for schedule: DaySchedule, ishaEnd: IshaEndRule) -> [DayTimeRow] {
         var rows: [DayTimeRow] = []
         for prayer in Prayer.allCases {
             let window = schedule.window(of: prayer, ishaEnd: ishaEnd)
-            rows.append(DayTimeRow(id: prayer.rawValue, title: prayer.displayName, start: window.start, end: window.end))
+            rows.append(DayTimeRow(
+                id: prayer.rawValue,
+                title: prayer.displayName,
+                start: window.start,
+                end: window.end,
+                rakahs: RakahCount.obligatory(for: prayer)
+            ))
             if prayer == .fajr {
                 rows.append(DayTimeRow(id: "sunrise", title: "Sunrise", start: schedule.day.sunrise, end: nil))
             }

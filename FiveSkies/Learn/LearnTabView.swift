@@ -11,6 +11,7 @@ struct LearnTabView: View {
     @EnvironmentObject private var quran: QuranStore
     @EnvironmentObject private var navigator: QuranNavigator
     @EnvironmentObject private var player: ListenPlayer
+    @EnvironmentObject private var settings: AppSettings
     @Environment(\.appClock) private var clock
 
     @State private var path: [Destination] = []
@@ -25,6 +26,10 @@ struct LearnTabView: View {
                         .foregroundStyle(MorePalette.secondaryText)
                         .padding(.horizontal, 4)
 
+                    if settings.newToIslam {
+                        // Plan N2: someone new starts on the path.
+                        startHereCard
+                    }
                     card(
                         .review,
                         symbol: "arrow.triangle.2.circlepath",
@@ -33,13 +38,8 @@ struct LearnTabView: View {
                     ) {
                         LearnReviewSummary(now: clock.now())
                     }
-                    card(
-                        .path,
-                        symbol: "figure.walk",
-                        title: "Start here",
-                        identifier: "learnOpenPath"
-                    ) {
-                        LearnCardLine(text: "Short surahs in a gentle order")
+                    if !settings.newToIslam {
+                        startHereCard
                     }
                     card(
                         .memorize,
@@ -85,6 +85,17 @@ struct LearnTabView: View {
             .navigationDestination(for: Destination.self) { destination in
                 screen(destination)
             }
+        }
+    }
+
+    private var startHereCard: some View {
+        card(
+            .path,
+            symbol: "figure.walk",
+            title: "Start here",
+            identifier: "learnOpenPath"
+        ) {
+            LearnCardLine(text: "Short surahs in a gentle order")
         }
     }
 

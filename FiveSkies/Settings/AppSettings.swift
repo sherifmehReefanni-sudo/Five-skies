@@ -129,6 +129,8 @@ struct AlertPreferences: Equatable {
     /// Where the Isha window ends, for the "ends soon" reminder.
     var ishaEnd: IshaEndRule = AppSettings.defaultIshaEnd
     var nightAlarm: NightAlarmSettings = NightAlarmSettings()
+    /// Plan N6: alerts say only "Reminder", with no prayer name.
+    var privateReminders: Bool = false
 
     func mode(for prayer: Prayer) -> AlertMode {
         modes[prayer] ?? AppSettings.defaultAlertMode
@@ -179,6 +181,8 @@ final class AppSettings: ObservableObject {
         static let nightAlarmAnchor = "settings.nightAlarm.anchor"
         static let nightAlarmOffset = "settings.nightAlarm.offsetMinutes"
         static let nightAlarmWeekdays = "settings.nightAlarm.weekdays"
+        static let newToIslam = "settings.newToIslam"
+        static let privateReminders = "settings.privateReminders"
         static func alertMode(for prayer: Prayer) -> String {
             "settings.alertMode.\(prayer.rawValue)"
         }
@@ -236,6 +240,16 @@ final class AppSettings: ObservableObject {
     /// Calendar weekday numbers (1 is Sunday) on which the night alarm rings.
     @Published var nightAlarmWeekdays: Set<Int> {
         didSet { defaults.set(nightAlarmWeekdays.sorted(), forKey: Keys.nightAlarmWeekdays) }
+    }
+
+    /// Plan N1: explain terms and keep things simple. Off by default.
+    @Published var newToIslam: Bool {
+        didSet { defaults.set(newToIslam, forKey: Keys.newToIslam) }
+    }
+
+    /// Plan N6: alerts say only "Reminder", with no prayer name. Off by default.
+    @Published var privateReminders: Bool {
+        didSet { defaults.set(privateReminders, forKey: Keys.privateReminders) }
     }
 
     private let defaults: UserDefaults
@@ -301,6 +315,9 @@ final class AppSettings: ObservableObject {
         _nightAlarmAnchor = Published(initialValue: anchor)
         _nightAlarmOffsetMinutes = Published(initialValue: offset)
         _nightAlarmWeekdays = Published(initialValue: weekdays)
+
+        _newToIslam = Published(initialValue: defaults.object(forKey: Keys.newToIslam) as? Bool ?? false)
+        _privateReminders = Published(initialValue: defaults.object(forKey: Keys.privateReminders) as? Bool ?? false)
     }
 
     func alertMode(for prayer: Prayer) -> AlertMode {
@@ -327,7 +344,8 @@ final class AppSettings: ObservableObject {
             reminderMinutesBefore: reminderMinutesBefore,
             endReminderMinutes: endReminderMinutes,
             ishaEnd: ishaEnd,
-            nightAlarm: nightAlarm
+            nightAlarm: nightAlarm,
+            privateReminders: privateReminders
         )
     }
 

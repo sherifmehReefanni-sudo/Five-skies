@@ -351,8 +351,15 @@ private struct DayTimeRowView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
-            Text(row.title)
-                .font(isProminent ? .headline.weight(.heavy) : .subheadline.weight(.bold))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(row.title)
+                    .font(isProminent ? .headline.weight(.heavy) : .subheadline.weight(.bold))
+                if let caption = row.rakahCaption {
+                    Text(caption)
+                        .font(.caption.weight(.semibold))
+                        .opacity(0.8)
+                }
+            }
             if isCurrent {
                 Text("NOW")
                     .font(.caption2.weight(.heavy))
@@ -387,10 +394,14 @@ private struct DayTimeRowView: View {
         .accessibilityLabel(Text(spoken))
         .accessibilityAddTraits(isCurrent ? AccessibilityTraits.isSelected : AccessibilityTraits())
         .accessibilityIdentifier("dayRow-\(row.id)")
+        .explainsTerm(GlossaryTerm(dayRowID: row.id))
     }
 
     private var spoken: String {
-        let text = row.spokenText(format)
+        var text = row.spokenText(format)
+        if let caption = row.rakahCaption {
+            text += ", " + caption
+        }
         return isCurrent ? text + ", now" : text
     }
 

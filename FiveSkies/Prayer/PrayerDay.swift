@@ -19,6 +19,17 @@ enum Prayer: String, CaseIterable, Codable, Identifiable {
         case .isha: return "Isha"
         }
     }
+
+    /// The plain label shown next to the name for people new to Islam (plan N2).
+    var plainLabel: String {
+        switch self {
+        case .fajr: return "the dawn prayer"
+        case .dhuhr: return "the midday prayer"
+        case .asr: return "the afternoon prayer"
+        case .maghrib: return "the sunset prayer"
+        case .isha: return "the night prayer"
+        }
+    }
 }
 
 /// The next prayer and the moment it begins.

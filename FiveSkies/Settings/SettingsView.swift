@@ -1,17 +1,30 @@
 import SwiftUI
 import UIKit
 
-/// The "Adhan and alerts" screen: per prayer alerts, reminders, the night alarm, and calculation settings.
-/// Reads AppSettings and NotificationScheduler from the environment.
+/// The "Adhan and alerts" screen: New to Islam, per prayer alerts, reminders, the night alarm,
+/// and calculation settings. Reads AppSettings and NotificationScheduler from the environment.
+/// `place` is where Today shows times for; nil (still locating) means the Makkah fallback.
+/// It is used only for the times on "Match your mosque".
 struct SettingsView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var scheduler: NotificationScheduler
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
-    init() {}
+    private let place: Place
+
+    init(place: Place? = nil) {
+        self.place = place ?? Place.makkahFallback
+    }
 
     var body: some View {
+        NavigationStack {
+            content
+                .toolbar(.hidden, for: .navigationBar)
+        }
+    }
+
+    private var content: some View {
         ZStack {
             LinearGradient(
                 stops: [
@@ -33,6 +46,8 @@ struct SettingsView: View {
                         permissionCard
                             .padding(.top, 20)
                     }
+
+                    newToIslamSection
 
                     sectionTitle("Prayer alerts")
                     SettingsCard {
@@ -128,7 +143,10 @@ struct SettingsView: View {
                             .labelsHidden()
                             .tint(Color(hex: 0xFFE0A3))
                             .frame(minHeight: 44)
+                            cardNote(Self.notSureNote)
                         }
+                        SettingsDivider()
+                        matchMosqueLink
                         SettingsDivider()
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Asr time")
@@ -143,6 +161,7 @@ struct SettingsView: View {
                             .labelsHidden()
                             .tint(Color(hex: 0xFFE0A3))
                             .frame(minHeight: 44)
+                            cardNote(Self.notSureNote)
                         }
                     }
 
@@ -170,6 +189,87 @@ struct SettingsView: View {
                 scheduler.nightAlarmTurnedOn(preferences: settings.alertPreferences)
             }
         }
+    }
+
+    /// Plan N5: the same plain line under the calculation method and the Asr choice.
+    static let notSureNote = "If you are not sure, keep this and ask your mosque."
+
+    // MARK: - New to Islam
+
+    /// Plan N1 and N6, near the top so it is easy to find again.
+    private var newToIslamSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionTitle("New to Islam")
+            SettingsCard {
+                switchRow(
+                    "I am new to Islam or new to prayer",
+                    isOn: $settings.newToIslam,
+                    identifier: "settingsNewToIslam"
+                )
+                cardNote("We will explain terms and keep things simple.")
+                    .padding(.bottom, 10)
+                SettingsDivider()
+                switchRow(
+                    "Private reminders",
+                    isOn: $settings.privateReminders,
+                    identifier: "settingsPrivateReminders"
+                )
+                cardNote("Alerts say only Reminder, with no prayer name. For when others may see your screen.")
+                    .padding(.bottom, 10)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settingsNewToIslamSection")
+    }
+
+    /// A bold title with a switch on the right, like the night alarm row.
+    private func switchRow(_ title: String, isOn: Binding<Bool>, identifier: String) -> some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .font(.subheadline.weight(.bold))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 8)
+            Toggle(title, isOn: isOn)
+                .labelsHidden()
+                .tint(Color(hex: 0xFBC56A))
+                .accessibilityIdentifier(identifier)
+        }
+        .frame(minHeight: 50)
+    }
+
+    /// A short help line inside a card.
+    private func cardNote(_ text: String) -> some View {
+        Text(text)
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.white.opacity(0.84))
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.bottom, 8)
+    }
+
+    /// Opens the list of methods with today's Fajr and Isha (plan N5).
+    private var matchMosqueLink: some View {
+        NavigationLink {
+            MatchMosqueView(place: place)
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Match your mosque")
+                        .font(.subheadline.weight(.bold))
+                    Text("Compare Fajr and Isha for each method")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.84))
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Color(hex: 0xFFE0A3))
+                    .accessibilityHidden(true)
+            }
+            .frame(minHeight: 54)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("matchMosqueLink")
     }
 
     /// A row with a bold title and a menu picker on the right.
@@ -326,10 +426,19 @@ struct SettingsView: View {
 
     private func alertRow(for prayer: Prayer) -> some View {
         HStack(spacing: 12) {
-            Text(prayer.displayName)
-                .font(.subheadline.weight(.heavy))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(prayer.displayName)
+                    .font(.subheadline.weight(.heavy))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                if settings.newToIslam {
+                    Text(prayer.plainLabel)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.84))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                }
+            }
             Spacer(minLength: 8)
             Picker("\(prayer.displayName) alert", selection: alertBinding(for: prayer)) {
                 ForEach(AlertMode.allCases) { mode in

@@ -22,11 +22,12 @@ enum NightAlarmBridge {
 
     /// Makes this app's AlarmKit alarms match `alarms`. When `enabled` is false, cancels ours.
     /// Returns true when AlarmKit now holds the night alarm, so no notification is needed.
+    /// `isPrivate` (plan N6) titles the alarm "Alarm" instead of "Night alarm".
     @MainActor
-    static func sync(_ alarms: [PlannedNightAlarm], enabled: Bool) async -> Bool {
+    static func sync(_ alarms: [PlannedNightAlarm], enabled: Bool, isPrivate: Bool = false) async -> Bool {
         #if canImport(AlarmKit)
         if #available(iOS 26.0, *) {
-            return await NightAlarmKitScheduler.sync(alarms, enabled: enabled)
+            return await NightAlarmKitScheduler.sync(alarms, enabled: enabled, isPrivate: isPrivate)
         }
         #endif
         return false
@@ -69,7 +70,7 @@ enum NightAlarmKitScheduler {
     }
 
     @MainActor
-    static func sync(_ alarms: [PlannedNightAlarm], enabled: Bool) async -> Bool {
+    static func sync(_ alarms: [PlannedNightAlarm], enabled: Bool, isPrivate: Bool) async -> Bool {
         let manager = AlarmManager.shared
         let state = manager.authorizationState
         // Never asked: nothing of ours can exist, and asking happens only from settings.
@@ -96,7 +97,7 @@ enum NightAlarmKitScheduler {
         for item in alarms {
             guard let id = alarmID(for: item), !ringing.contains(id) else { continue }
             do {
-                _ = try await manager.schedule(id: id, configuration: configuration(for: item))
+                _ = try await manager.schedule(id: id, configuration: configuration(for: item, isPrivate: isPrivate))
             } catch {
                 // Fall back to notifications rather than leave a half-made set.
                 let current = ((try? manager.alarms) ?? []).filter { isOurs($0.id) }
@@ -109,9 +110,15 @@ enum NightAlarmKitScheduler {
         return true
     }
 
-    private static func configuration(for item: PlannedNightAlarm) -> AlarmManager.AlarmConfiguration<NightAlarmMetadata> {
+    private static func configuration(for item: PlannedNightAlarm, isPrivate: Bool) -> AlarmManager.AlarmConfiguration<NightAlarmMetadata> {
         let stop = AlarmButton(text: "Stop", textColor: .white, systemImageName: "stop.circle")
-        let alert = AlarmPresentation.Alert(title: "Night alarm", stopButton: stop)
+        // Literal titles, as AlarmKit takes a LocalizedStringResource. Private mode says only "Alarm".
+        let alert: AlarmPresentation.Alert
+        if isPrivate {
+            alert = AlarmPresentation.Alert(title: "Alarm", stopButton: stop)
+        } else {
+            alert = AlarmPresentation.Alert(title: "Night alarm", stopButton: stop)
+        }
         let attributes = AlarmAttributes<NightAlarmMetadata>(
             presentation: AlarmPresentation(alert: alert),
             metadata: NightAlarmMetadata(),

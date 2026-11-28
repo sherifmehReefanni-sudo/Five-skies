@@ -4,6 +4,7 @@ import UserNotifications
 
 /// The first-run flow: welcome, location, alerts, done. Each page has its own sky and the
 /// pages cross-fade (only while motion is on). Skip on every page ends the flow.
+/// The welcome page carries the one optional "New to Islam" switch (plan N1).
 /// Permissions are asked only when the user taps the gold button on that page, and never
 /// when `gate.requestsPermissions` is false (screenshot mode).
 struct FirstRunFlowView: View {
@@ -16,7 +17,10 @@ struct FirstRunFlowView: View {
     @State private var awaitsLocationAnswer = false
     /// True between tapping "Allow alerts" and the user answering the system prompt.
     @State private var awaitsAlertsAnswer = false
+    /// Holds the switch in screenshot mode, where nothing is written to settings.
+    @State private var screenshotNewToIslam = false
 
+    @EnvironmentObject private var settings: AppSettings
     @Environment(\.motionEnabled) private var motionEnabled
 
     private static let ink = Color(hex: 0x120B1F)
@@ -51,6 +55,12 @@ struct FirstRunFlowView: View {
                 }
                 .padding(.horizontal, 28)
                 .padding(.top, 20)
+                if page == .welcome {
+                    newToIslamCard
+                        .padding(.horizontal, 24)
+                        .padding(.top, 22)
+                        .transition(.opacity)
+                }
                 Spacer(minLength: 24)
                 OnboardingPageDots(current: page)
                     .padding(.bottom, 20)
@@ -74,6 +84,47 @@ struct FirstRunFlowView: View {
     }
 
     // MARK: - Controls
+
+    /// Plan N1: one optional switch, off by default. No other questions.
+    private var newToIslamCard: some View {
+        let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 12) {
+                Text("I am new to Islam or new to prayer")
+                    .font(.headline.weight(.heavy))
+                    .foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                Toggle("I am new to Islam or new to prayer", isOn: newToIslamBinding)
+                    .labelsHidden()
+                    .tint(Self.gold)
+                    .accessibilityIdentifier("firstRunNewToIslam")
+            }
+            Text("We will explain terms and keep things simple. You can change this in Settings.")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.9))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(shape.fill(Self.ink.opacity(0.45)))
+        .overlay(shape.strokeBorder(Color.white.opacity(0.3), lineWidth: 1))
+    }
+
+    /// Writes to settings, except in screenshot mode, which leaves no trace.
+    private var newToIslamBinding: Binding<Bool> {
+        Binding(
+            get: { gate.recordsCompletion ? settings.newToIslam : screenshotNewToIslam },
+            set: { isOn in
+                if gate.recordsCompletion {
+                    settings.newToIslam = isOn
+                } else {
+                    screenshotNewToIslam = isOn
+                }
+            }
+        )
+    }
 
     private var skipButton: some View {
         Button(action: finish) {
@@ -318,6 +369,7 @@ struct FirstRunFlowModifier: ViewModifier {
     @State private var gate: OnboardingGate
     @State private var isPresented: Bool
 
+    @EnvironmentObject private var settings: AppSettings
     @Environment(\.motionEnabled) private var motionEnabled
 
     init(
@@ -337,6 +389,7 @@ struct FirstRunFlowModifier: ViewModifier {
         content
             .fullScreenCover(isPresented: $isPresented) {
                 FirstRunFlowView(location: location, gate: gate, finish: finish)
+                    .environmentObject(settings)
             }
     }
 

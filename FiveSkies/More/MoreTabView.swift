@@ -132,6 +132,7 @@ enum MoreTool: String, CaseIterable, Identifiable {
     case stories
     case themes
     case preferences
+    case glossary
     case sources
 
     var id: String { rawValue }
@@ -153,6 +154,7 @@ enum MoreTool: String, CaseIterable, Identifiable {
         case .halal: return "Halal food"
         case .stories: return "Stories"
         case .themes: return "Themes"
+        case .glossary: return "Words used in the app"
         case .sources: return "About and sources"
         }
     }
@@ -174,6 +176,7 @@ enum MoreTool: String, CaseIterable, Identifiable {
         case .halal: return "fork.knife"
         case .stories: return "book"
         case .themes: return "paintpalette"
+        case .glossary: return "character.book.closed"
         case .sources: return "info.circle"
         }
     }
@@ -187,14 +190,14 @@ enum MoreTool: String, CaseIterable, Identifiable {
         case .duas: return Color(red: 160 / 255, green: 120 / 255, blue: 240 / 255).opacity(0.45)
         case .ramadan: return Color(red: 240 / 255, green: 110 / 255, blue: 150 / 255).opacity(0.45)
         case .names, .themes: return Color(red: 240 / 255, green: 200 / 255, blue: 90 / 255).opacity(0.45)
-        case .sources, .preferences: return Color.white.opacity(0.22)
+        case .sources, .preferences, .glossary: return Color.white.opacity(0.22)
         }
     }
 
     var isAvailable: Bool {
         switch self {
         case .tracker, .goals, .tasbih, .zakat, .hijriCalendar, .timetable, .ramadan, .mosques, .halal,
-             .themes, .preferences, .sources:
+             .themes, .preferences, .sources, .glossary:
             return true
         case .hadith, .duas, .names, .stories:
             return false
@@ -215,6 +218,7 @@ enum MoreTool: String, CaseIterable, Identifiable {
         case .mosques: MosquesView()
         case .halal: HalalFoodView()
         case .themes: ThemesView()
+        case .glossary: GlossaryView()
         case .sources: SourcesView()
         case .hadith, .duas, .names, .stories: EmptyView()
         }

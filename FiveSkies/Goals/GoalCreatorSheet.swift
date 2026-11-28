@@ -7,6 +7,7 @@ struct GoalCreatorSheet: View {
     let onCreate: (GoalKind, Int, String) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var settings: AppSettings
     @State private var kind: GoalKind = .fajrThisMonth
     @State private var target = GoalKind.fajrThisMonth.defaultTarget
     @State private var name = ""
@@ -60,6 +61,12 @@ struct GoalCreatorSheet: View {
         .moreSkyBackground(.more)
         .onChange(of: kind) { _, newKind in
             target = newKind.defaultTarget
+        }
+        .onAppear {
+            // Plan N2: someone new to prayer starts from the smallest goal.
+            if settings.newToIslam, kind == .fajrThisMonth {
+                kind = .onePrayerDays
+            }
         }
     }
 
@@ -120,6 +127,7 @@ struct GoalCreatorSheet: View {
 
     private var targetUnit: String {
         switch kind {
+        case .onePrayerDays: return "days, any days you like"
         case .fajrThisMonth: return "days this month"
         case .allFiveDays: return "days, any days you like"
         case .nightPrayer: return "nights, any nights you like"

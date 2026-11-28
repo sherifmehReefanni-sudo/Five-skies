@@ -3,6 +3,8 @@ import Foundation
 /// The kinds of personal goal a user can start from a template.
 /// Every goal is a count toward a target. None is a streak, and gaps never reset anything.
 enum GoalKind: String, Codable, CaseIterable, Identifiable {
+    /// A small first goal for people new to prayer (plan N2): days with at least one prayer marked.
+    case onePrayerDays
     case fajrThisMonth
     case allFiveDays
     case nightPrayer
@@ -15,6 +17,7 @@ enum GoalKind: String, Codable, CaseIterable, Identifiable {
     /// The name of the template in the goal picker.
     var templateTitle: String {
         switch self {
+        case .onePrayerDays: return "One prayer a day"
         case .fajrThisMonth: return "Fajr this month"
         case .allFiveDays: return "All five prayers on a number of days"
         case .nightPrayer: return "Night prayer on a number of nights"
@@ -27,6 +30,7 @@ enum GoalKind: String, Codable, CaseIterable, Identifiable {
     /// One line under the template and on the goal card.
     var detail: String {
         switch self {
+        case .onePrayerDays: return "Counts days you mark any prayer. No deadline, any days you like."
         case .fajrThisMonth: return "Counts days you mark Fajr. Starts fresh each month."
         case .allFiveDays: return "No deadline. The days do not need to be in a row."
         case .nightPrayer: return "No deadline. Log each night you pray."
@@ -38,6 +42,7 @@ enum GoalKind: String, Codable, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .onePrayerDays: return "leaf"
         case .fajrThisMonth: return "sunrise"
         case .allFiveDays: return "checkmark.circle"
         case .nightPrayer: return "moon.stars"
@@ -48,6 +53,7 @@ enum GoalKind: String, Codable, CaseIterable, Identifiable {
 
     var defaultTarget: Int {
         switch self {
+        case .onePrayerDays: return 7
         case .fajrThisMonth: return 9
         case .allFiveDays: return 40
         case .nightPrayer: return 40
@@ -60,7 +66,7 @@ enum GoalKind: String, Codable, CaseIterable, Identifiable {
     var targetRange: ClosedRange<Int> {
         switch self {
         case .fajrThisMonth: return 1...31
-        case .allFiveDays, .nightPrayer: return 1...365
+        case .onePrayerDays, .allFiveDays, .nightPrayer: return 1...365
         case .dhikrToday: return 10...10_000
         case .dhikrWeek: return 50...50_000
         case .custom: return 1...1_000
@@ -69,7 +75,7 @@ enum GoalKind: String, Codable, CaseIterable, Identifiable {
 
     var targetStep: Int {
         switch self {
-        case .fajrThisMonth, .allFiveDays, .nightPrayer, .custom: return 1
+        case .onePrayerDays, .fajrThisMonth, .allFiveDays, .nightPrayer, .custom: return 1
         case .dhikrToday: return 10
         case .dhikrWeek: return 50
         }
@@ -120,6 +126,7 @@ struct PersonalGoal: Codable, Identifiable, Equatable {
     /// The goal as a short sentence, as in "All five prayers on 40 days".
     var title: String {
         switch kind {
+        case .onePrayerDays: return target == 1 ? "One prayer on 1 day" : "One prayer a day, \(target) days"
         case .fajrThisMonth: return "Fajr, \(target) times this month"
         case .allFiveDays: return target == 1 ? "All five prayers on 1 day" : "All five prayers on \(target) days"
         case .nightPrayer: return target == 1 ? "Night prayer on 1 night" : "Night prayer on \(target) nights"
@@ -246,7 +253,7 @@ struct GoalCounter {
         case .fajrThisMonth: return monthKey(for: today)
         case .dhikrToday: return dayKey(for: today)
         case .dhikrWeek: return weekKeys(containing: today).first ?? dayKey(for: today)
-        case .allFiveDays, .nightPrayer, .custom: return "all"
+        case .onePrayerDays, .allFiveDays, .nightPrayer, .custom: return "all"
         }
     }
 
@@ -263,6 +270,10 @@ struct GoalCounter {
             let prefix = monthKey(for: today) + "-"
             return prayedDays.filter { day in
                 day.key.hasPrefix(prefix) && day.key <= todayKey && day.value.contains(.fajr)
+            }.count
+        case .onePrayerDays:
+            return prayedDays.filter { day in
+                day.key >= goal.startKey && day.key <= todayKey && !day.value.isEmpty
             }.count
         case .allFiveDays:
             let everyPrayer = Set(Prayer.allCases)

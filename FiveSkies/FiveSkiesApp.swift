@@ -115,6 +115,7 @@ struct FiveSkiesApp: App {
             ))
             .modifier(SignatureStarLifecycle(controller: signatureStar))
             .modifier(ContinueListeningNote(player: listenPlayer))
+            .modifier(NewToIslamDefaults(settings: settings, translations: translations))
             .modifier(PrayerPauseWiring(arrivals: arrivals, player: listenPlayer, settings: settings, location: location))
             .modifier(MotionEnvironment(
                 isFixedPhase: launch.fixedPhase != nil,
@@ -161,7 +162,8 @@ private struct NotificationRefresh: ViewModifier {
             service: service.applying(method: settings.calculationMethod, asrRule: settings.asrRule),
             place: location.coordinate.map { Place.device($0) } ?? Place.makkahFallback,
             preferences: settings.alertPreferences,
-            now: clock.now()
+            now: clock.now(),
+            isPrivate: settings.privateReminders
         )
     }
 }
@@ -220,5 +222,20 @@ extension View {
             .toolbarBackground(.visible, for: .tabBar)
             .toolbarBackground(Color(hex: 0x120B1F, opacity: 0.55), for: .tabBar)
             .toolbarColorScheme(.dark, for: .tabBar)
+    }
+}
+
+/// Plan N2: turning on "New to Islam" also turns on the transliteration under each ayah.
+/// Turning it off leaves the reading choices as they are.
+private struct NewToIslamDefaults: ViewModifier {
+    @ObservedObject var settings: AppSettings
+    let translations: TranslationStore
+
+    func body(content: Content) -> some View {
+        content.onChange(of: settings.newToIslam) { _, isOn in
+            if isOn {
+                translations.showsTransliteration = true
+            }
+        }
     }
 }
