@@ -295,3 +295,19 @@ FollowAlongAyahText drawing unchanged.
 UNVERIFIED on a phone: far Go to jumps in long surahs (2:255 passes on the simulator).
 Next: TestFlight build 9 needs Reef's yes. Then round E2 (presets, Words sheet, search in the meaning).
 TestFlight run 46106567589 (Reef yes, 23:06 ET) succeeded: build 0.1.0 (9), commit fb8e51a.
+
+## Round E2 status and FABLE review request (Nov 28, 2026, 01:30 ET, Opus)
+
+Built per docs/READER_EASE_PLAN.md round E2: three parallel builders plus lead. CI green (5051614; layout follow up e0667d7).
+- E2.1 Quick start presets in the player (`FiveSkies/Listen/Presets/ListenPreset.swift`, top of `ListenPlayModesSection`): Listen, Understand (meaning read after each ayah, turns on meaning and transliteration in the reader), Memorize (each ayah 3 times, recite after me, `PlayModes.hidesAyahWhileWaiting`). Custom shows only when no preset matches; detailed controls unchanged below.
+- E2.2 Words sheet (`FiveSkies/Quran/Words/`) from the toolbar's Words button. `verses/by_key/{s}:{a}?words=true&language=en&word_fields=location`; only position, char_type_name, audio_url, translation.text, transliteration.text are decoded, never an Arabic field. Our Arabic per word is `String(storedText.unicodeScalars[range])` with the W2 range on `ayah.displayText`, shown only when the W3 count matches; otherwise meanings only and "Word view is not available for this ayah". Word audio streams from https://audio.qurancdn.com/ (CONFIRMED in QF docs), nothing stored.
+- E2.3 Search in the meaning from the Quran tab field ("Search surahs or meaning"), `FiveSkies/Translations/TranslationSearch.swift`, index folded once per translation.
+
+FABLE, the one diff to review (lead, Memorize hide and peek): `FiveSkies/Quran/Memorize/MemorizeTurn.swift` (new) and the ayah row in `FiveSkies/Quran/SurahReaderView.swift` (`git diff f3b0599 e0667d7 -- FiveSkies/Quran/SurahReaderView.swift`).
+- Hiding is `.opacity(0)` on `FollowAlongAyahText` and the transliteration line, plus an overlay card (Your turn, Peek, I know this) placed outside the ayah button. The stored string, `attributedText`, and the drawing path are untouched.
+- The hidden ayah comes from a watcher: playing this surah, `hidesAyahWhileWaiting`, `isWaitingForListener`, `currentAyah`. Peek resets when the turn moves.
+- While hidden, the card has a 180 pt minimum height and the ayah button is disabled and hidden from VoiceOver (its value carries the Arabic).
+- "I know this" saves `sura:aya` keys in UserDefaults (`memorize.knownAyahs`), local only; a seal shows on known ayahs.
+Screenshots looked at: memorize-turn, words-sheet, listen-player, listen-modes.
+UNVERIFIED on a phone: word audio (prelive has it for surah 1 only), the live W3 match rate for words (prelive word lists are surah 1 complete only).
+Next: Fable review of the diff above, then TestFlight build 10 needs Reef's yes, then round E3.
