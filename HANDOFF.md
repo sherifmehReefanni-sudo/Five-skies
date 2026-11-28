@@ -279,10 +279,4 @@ FABLE, for the next review: the drawing in FollowAlongAyahText is unchanged; the
 UNVERIFIED on a phone: speech with the screen locked; transliteration text from QF free of HTML tags.
 Next: TestFlight build 8 needs Reef's yes. Then Fable plans the ease-of-use list above.
 
-## Fable plan for the ease-of-use list (Nov 27, 2026, 21:10 ET)
-
-Plan: `docs/READER_EASE_PLAN.md`. Order of rounds is now E1 (reader: ayah toolbar, Play on the header, go to 2:255 or page or juz, one Reading sheet, one Continue card), E2 (presets Listen, Understand, Memorize; Words sheet; search in the meaning), E3 (Learn tab, reading plan, tafsir if prelive lists one), E4 (New to Islam). This replaces the round order in docs/LEARN_LISTEN_PLAN.md section 7.
-Decisions: word tap inside the running text is not in these rounds (it would replace the verified text drawing); a Words sheet instead, sliced by W2 ranges. Mushaf page view and tajweed colours are deferred to their own plan (second text source). No sepia.
-Waiting on Reef: the Quran Foundation production request. It is the only way to get more reciters, the other English translations and timings past surah 2. Draft text is in the plan.
-Fable reviews in these rounds: the Memorize hide and peek diff (E2), the default tafsir (E3).
-Next: build work, switch to Opus for round E1.
+TestFlight run 46097792093 (Reef yes, 21:22 ET) succeeded: build 0.1.0 (8).
