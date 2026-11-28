@@ -268,3 +268,13 @@ C3. Tajweed colour-coded text (QF has a tajweed script; display change, checkpoi
 C4. More reciters: production access (prelive has 4). Competitors list about 40, 11 with word highlighting.
 C5. Reading plans and khatm tracker (ours, no religious text) and translation "read like a book" mode.
 Later or not now: voice search and recitation mistake detection (needs speech recognition we cannot vouch for; plan L6).
+
+## Reef's reader requests (Nov 27, 19:47 ET): built (Opus)
+
+Passing CI (commit 25c2642). Per plan rules W6, D6 and section 6 "Read aloud".
+- Reader follows the recitation (`ReaderListenWatcher`, observes only currentAyah), Follow pill after a drag; "Play from this ayah" in the ayah dialog (`ayahPlayFrom`).
+- Transliteration: own synced resource found by name in the translation catalog (prelive id 57), own folder and switch ("transliterationOn", off by default), excluded from the translation picker, shown above the translation with `TransliterationAttributionFooter`.
+- Read the meaning after each ayah (`PlayModes.readsMeaning`): AVSpeechSynthesizer, English voice only, any Arabic scalar blocks speech, credit line stays on the bar. Meaning comes from the chosen translation through `TranslationMeaningProvider` (FiveSkies/Listen/ListenMeaningBridge.swift).
+FABLE, for the next review: the drawing in FollowAlongAyahText is unchanged; the reader file changed around it (auto-scroll, dialog, transliteration line).
+UNVERIFIED on a phone: speech with the screen locked; transliteration text from QF free of HTML tags.
+Next: TestFlight build 8 needs Reef's yes. Then Fable plans the ease-of-use list above.
