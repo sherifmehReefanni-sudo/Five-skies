@@ -374,3 +374,19 @@ CI green (0c42e86). Screenshots looked at: quran-duas, start-here, common-words.
 4. Privacy page: "Site not found" is because GitHub Pages is OFF for the repo (`has_pages: false` from the GitHub API). The address in the draft is right once Pages serves `/docs` from `main`. Reef turns it on in the repo settings (his account setting); Opus then checks the page loads. The draft no longer claims offline downloads, and the privacy page now names word audio.
 5. sunnahsource.org: not used anywhere.
 Next: TestFlight build 13 needs Reef's yes. Round E4 started.
+TestFlight run 46160178432 (Reef yes, 10:24 ET) succeeded: build 0.1.0 (13) from branch `release-13` at ee06e57, the version he approved (Fable decisions, no E4). The branch is a pointer only; delete it once a later build supersedes it.
+
+## Round E4 status: New to Islam (Nov 28, 2026, 12:00 ET, Opus)
+
+Built N1 to N7 from docs/LEARN_LISTEN_PLAN.md section 5, three parallel builders plus lead. CI green on 1c7396d (one rerun: `TodayUITests.testTappingATileMarksItAsPrayed` timed out once, then passed; it touches nothing E4 changed, so treat it as flaky).
+- N1: one switch on the welcome page and in Settings ("Adhan and alerts", reached from Today's gear): `settings.newToIslam`.
+- N2: with it on, plain labels ("Fajr, the dawn prayer") on Today and the alert rows, transliteration turned on, Start here first in Learn, "One prayer a day" as the default first goal (new `GoalKind.onePrayerDays`, counts days with any prayer marked).
+- N3: `FiveSkies/Glossary/`, 40 plain meanings, glossary tile "Words used in the app" in More, popovers on Today's prayer name (only when New to Islam is on) and on every day view row.
+- N4: obligatory rakah counts on the day view rows (`FiveSkies/DayView/RakahCount.swift`).
+- N5: "If you are not sure, keep this and ask your mosque." on method and Asr; Match your mosque lists Fajr and Isha for every method at the user's place and selects on tap.
+- N6: `settings.privateReminders`; alerts say "Reminder" / "You set this reminder.", night alarm "Alarm".
+- N7: no "missed" anywhere in UI strings (grep).
+- Every explanatory line of ours is on docs/SCHOLAR_REVIEW.md, sections D to F (items 21 to 65). Nothing goes to outside testers before those have answers.
+- N8 and N9 stay blocked (no prayer steps, no wudu steps, no shahada text, no hadith).
+Screenshots looked at: onboarding-1, settings-new-to-islam, match-mosque, glossary, day-view.
+Next: TestFlight build 14 needs Reef's yes. Reef: turn on GitHub Pages, then Opus checks the privacy page before the Quran Foundation request.
