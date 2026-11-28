@@ -311,3 +311,16 @@ FABLE, the one diff to review (lead, Memorize hide and peek): `FiveSkies/Quran/M
 Screenshots looked at: memorize-turn, words-sheet, listen-player, listen-modes.
 UNVERIFIED on a phone: word audio (prelive has it for surah 1 only), the live W3 match rate for words (prelive word lists are surah 1 complete only).
 Next: Fable review of the diff above, then TestFlight build 10 needs Reef's yes, then round E3.
+
+## Fable review of the round E2 Memorize diff (Nov 28, 2026, 01:10 ET)
+
+Verdict: PASSES checkpoint 1. Reviewed `FiveSkies/Quran/Memorize/MemorizeTurn.swift`, `git diff f3b0599 e0667d7 -- FiveSkies/Quran/SurahReaderView.swift`, and the `memorize-turn` and `words-sheet` screenshots.
+- Hiding is opacity plus a cover outside the button. The stored string, `attributedText` and `FollowAlongAyahText` are not touched. The cover hides the Arabic fully in the screenshot.
+- VoiceOver: the ayah (whose value holds the Arabic) is hidden while covered; the cover is not. Correct.
+- Words sheet: each word is a slice of the stored string by its W2 range; the three words shown match the ayah above them. Accepted.
+Build 10 is fine to go to Reef. It still needs his yes.
+
+Two fixes for round E3 (not blockers for build 10):
+1. "I know this" cannot be undone. `KnownAyahsStore.forget` is never called. Add "Remove known mark" to the ayah toolbar's More menu, or make the Known button toggle.
+2. There are now two stores for the same thing: `MemorizeProgressStore` (the old Memorize screen in More, in the backup list) and `KnownAyahsStore` ("memorize.knownAyahs", not in the backup list). When Memorize moves to Learn in E3, keep one store, carry the old marks over, and put it in the iCloud backup. Replace, do not layer.
+To check on a phone: the card grows to 180 pt when hidden, so short ayahs may make the list jump when a turn starts.
