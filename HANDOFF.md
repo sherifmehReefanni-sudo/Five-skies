@@ -364,3 +364,13 @@ Duas from the Quran, verse keys for the manifest (keys only; Arabic from the bun
 
 Quran Foundation production request, scope names for Reef (from relay/src/token.js): content.quran.read, content.translations.read, content.tafsirs.read, content.audio.read, content.metadata.read, content.sync.read. Draft text is in docs/READER_EASE_PLAN.md. Opus: confirm the privacy page address loads before Reef sends it.
 Next: build work, switch to Opus: decisions 1 and 2, the duas manifest, then round E4 (New to Islam).
+
+## Fable decisions done (Nov 28, 2026, 11:00 ET, Opus)
+
+CI green (0c42e86). Screenshots looked at: quran-duas, start-here, common-words.
+1. Common words count the word token as stored, without an attached sign-only token. Now 77,433 words in 18,993 forms; top 100 = 30% (on screen, matches the Python mirror).
+2. Start here is computed: 1, 112, 113, 114, then 108, 103, 110, 106, 111, 105, 109, 107, 104. Fable's order, CONFIRMED by a unit test on the bundled text. 105 and 111 tie on ayahs (5) and words (23), so the last rule is "later surah first" (the path walks back from the end); that rule is Opus's. Teacher note added under the list.
+3. Duas from the Quran in Learn (`FiveSkies/Learn/QuranDuas/`): the five keys and titles only; whole ayahs from the bundled text; meaning from the chosen translation with its credit. Added to docs/SCHOLAR_REVIEW.md section C (items 16 to 20).
+4. Privacy page: "Site not found" is because GitHub Pages is OFF for the repo (`has_pages: false` from the GitHub API). The address in the draft is right once Pages serves `/docs` from `main`. Reef turns it on in the repo settings (his account setting); Opus then checks the page loads. The draft no longer claims offline downloads, and the privacy page now names word audio.
+5. sunnahsource.org: not used anywhere.
+Next: TestFlight build 13 needs Reef's yes. Round E4 started.
